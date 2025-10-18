@@ -3,12 +3,12 @@ import { ThemedView } from '@/components/themed-view';
 import { formatDistance, getCurrentLocation, getDistanceEmoji } from '@/lib/location';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 // Conditionally import react-native-maps only on native platforms
