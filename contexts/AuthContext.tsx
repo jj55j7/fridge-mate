@@ -14,6 +14,12 @@ interface UserProfile {
   bio?: string;
   foodPreferences: string[];
   leftoverVibe?: string;
+  profilePhotoUrl?: string;
+  location?: {
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+  };
   matchGoal: string;
   createdAt: Date;
 }
