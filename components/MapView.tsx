@@ -3,13 +3,34 @@ import { ThemedView } from '@/components/themed-view';
 import { formatDistance, getCurrentLocation, getDistanceEmoji } from '@/lib/location';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+
+// Conditionally import react-native-maps only on native platforms
+let MapView: any = null;
+let Marker: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    const MapsModule = require('react-native-maps');
+    MapView = MapsModule.default;
+    Marker = MapsModule.Marker;
+    PROVIDER_GOOGLE = MapsModule.PROVIDER_GOOGLE;
+  } catch (error) {
+    console.warn('react-native-maps not available on this platform');
+  }
+} else {
+  // For web, create mock components to prevent import errors
+  MapView = null;
+  Marker = null;
+  PROVIDER_GOOGLE = null;
+}
 
 interface MapUser {
   id: string;
@@ -78,6 +99,39 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
     return (
       <View style={styles.errorContainer}>
         <ThemedText>Unable to load map. Please check your location permissions.</ThemedText>
+      </View>
+    );
+  }
+
+  // Show web fallback if MapView is not available
+  if (Platform.OS === 'web' || !MapView) {
+    return (
+      <View style={styles.webFallback}>
+        <ThemedText type="subtitle" style={styles.webFallbackTitle}>
+          🗺️ Map View
+        </ThemedText>
+        <ThemedText style={styles.webFallbackText}>
+          Map functionality is available on mobile devices. Here are nearby users:
+        </ThemedText>
+        <View style={styles.usersList}>
+          {users.map((user) => (
+            <TouchableOpacity
+              key={user.id}
+              style={styles.userCard}
+              onPress={() => onUserSelect(user)}
+            >
+              <ThemedText type="subtitle" style={styles.userName}>
+                {user.name}
+              </ThemedText>
+              <ThemedText style={styles.userDistance}>
+                {getDistanceEmoji(user.distance)} {formatDistance(user.distance)}
+              </ThemedText>
+              <ThemedText style={styles.userFood}>
+                Has: {user.foodItems.join(', ')}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     );
   }
@@ -275,5 +329,31 @@ const styles = StyleSheet.create({
   },
   controlButtonText: {
     fontSize: 20,
+  },
+  webFallback: {
+    flex: 1,
+    padding: 20,
+  },
+  webFallbackTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  webFallbackText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    opacity: 0.8,
+  },
+  usersList: {
+    gap: 12,
+  },
+  userCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
 });

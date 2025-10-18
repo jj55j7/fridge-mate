@@ -1,17 +1,16 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Image,
-    PanGestureHandler,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
+import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 
 const { width: screenWidth } = Dimensions.get('window');
 const SWIPE_THRESHOLD = screenWidth * 0.25;

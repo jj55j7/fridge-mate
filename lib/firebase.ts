@@ -1,21 +1,22 @@
-import { initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Your Firebase config - you'll need to replace these with your actual values
+// Your Firebase config
 const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "your-sender-id",
-  appId: "your-app-id"
+  apiKey: "AIzaSyDhBaleAADOHYtM4NPYKaS5Aq7omO87PmE",
+  authDomain: "fridge-mate-63f94.firebaseapp.com",
+  projectId: "fridge-mate-63f94",
+  storageBucket: "fridge-mate-63f94.firebasestorage.app",
+  messagingSenderId: "501447406327",
+  appId: "1:501447406327:web:5b6e4cce440ac06833d9f2",
+  measurementId: "G-6071018WT8"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase (only if not already initialized)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize Firebase Authentication and get a reference to the service
+// Initialize Firebase Authentication
 export const auth = getAuth(app);
 
 // Initialize Cloud Firestore and get a reference to the service

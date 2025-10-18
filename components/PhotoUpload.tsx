@@ -1,16 +1,17 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Camera } from 'expo-camera';
+import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 interface PhotoUploadProps {
@@ -21,42 +22,60 @@ interface PhotoUploadProps {
 
 export default function PhotoUpload({ onPhotoSelected, onRecognitionComplete, loading = false }: PhotoUploadProps) {
   const [showCamera, setShowCamera] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
 
   const requestPermissions = async () => {
-    const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    setHasPermission(cameraStatus === 'granted' && mediaStatus === 'granted');
-    
-    if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
-      Alert.alert(
-        'Permissions Required',
-        'We need camera and photo library access to upload your leftover photos.',
-        [{ text: 'OK' }]
-      );
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert(
+          'Permission Required',
+          'We need camera access to take photos of your leftover food. Please enable it in your device settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Open Settings', 
+              onPress: () => Linking.openSettings() 
+            }
+          ]
+        );
+        return false;
+      }
     }
+    return true;
   };
 
   const takePhoto = async () => {
-    if (hasPermission === null) {
-      await requestPermissions();
-      return;
+    const hasPermission = await requestPermissions();
+    if (hasPermission) {
+      setShowCamera(true);
     }
-    
-    if (hasPermission === false) {
-      Alert.alert('Camera permission denied');
-      return;
-    }
-
-    setShowCamera(true);
   };
 
   const pickFromGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    // First check current permission status
+    const { status: currentStatus } = await ImagePicker.getMediaLibraryPermissionsAsync();
     
-    if (status !== 'granted') {
-      Alert.alert('Permission denied', 'We need photo library access to upload your leftover photos.');
+    let finalStatus = currentStatus;
+    
+    // If permission is not granted, request it
+    if (currentStatus !== 'granted') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      Alert.alert(
+        'Permission Required',
+        'We need photo library access to upload your leftover photos. Please enable it in your device settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Open Settings', 
+            onPress: () => Linking.openSettings() 
+          }
+        ]
+      );
       return;
     }
 
@@ -130,20 +149,26 @@ interface CameraModalProps {
 }
 
 function CameraModal({ visible, onClose, onPhotoTaken }: CameraModalProps) {
-  const [cameraRef, setCameraRef] = useState<Camera | null>(null);
+  const [facing, setFacing] = useState<CameraType>('back');
   const [capturing, setCapturing] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
 
   const takePicture = async () => {
-    if (cameraRef && !capturing) {
+    if (!capturing && permission?.granted && cameraRef.current) {
       setCapturing(true);
       try {
-        const photo = await cameraRef.takePictureAsync({
+        const photo = await cameraRef.current.takePictureAsync({
           quality: 0.8,
           base64: false,
         });
-        onPhotoTaken(photo.uri);
+        
+        if (photo?.uri) {
+          onPhotoTaken(photo.uri);
+        }
       } catch (error) {
-        Alert.alert('Error', 'Failed to take photo');
+        console.error('Error taking photo:', error);
+        Alert.alert('Error', 'Failed to take photo. Please try again.');
       } finally {
         setCapturing(false);
       }
@@ -152,6 +177,34 @@ function CameraModal({ visible, onClose, onPhotoTaken }: CameraModalProps) {
 
   if (!visible) return null;
 
+  if (!permission) {
+    // Camera permissions are still loading
+    return <View />;
+  }
+
+  if (!permission.granted) {
+    // Camera permissions are not granted yet
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <View style={styles.cameraContainer}>
+          <View style={styles.permissionContainer}>
+            <ThemedText style={styles.permissionText}>We need your permission to show the camera</ThemedText>
+            <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+              <Text style={styles.permissionButtonText}>Grant Permission</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       visible={visible}
@@ -159,10 +212,10 @@ function CameraModal({ visible, onClose, onPhotoTaken }: CameraModalProps) {
       onRequestClose={onClose}
     >
       <View style={styles.cameraContainer}>
-        <Camera
+        <CameraView
+          ref={cameraRef}
           style={styles.camera}
-          type={Camera.Constants.Type.back}
-          ref={(ref) => setCameraRef(ref)}
+          facing={facing}
         >
           <View style={styles.cameraOverlay}>
             <View style={styles.cameraHeader}>
@@ -184,7 +237,7 @@ function CameraModal({ visible, onClose, onPhotoTaken }: CameraModalProps) {
               </TouchableOpacity>
             </View>
           </View>
-        </Camera>
+        </CameraView>
       </View>
     </Modal>
   );
@@ -296,5 +349,42 @@ const styles = StyleSheet.create({
   },
   captureButtonText: {
     fontSize: 32,
+  },
+  permissionText: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: 'white',
+  },
+  permissionButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  permissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#1a1a1a',
+  },
+  cancelButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#666',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

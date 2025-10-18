@@ -4,15 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const FOOD_PREFERENCES = [
@@ -70,20 +70,39 @@ export default function ProfileSetupScreen() {
 
     setLoading(true);
     try {
-      await updateProfile({
+      // Create profile data object, only including defined values
+      const profileData: any = {
         name,
-        nickname: nickname || undefined,
-        age: age ? parseInt(age) : undefined,
-        gender: gender || undefined,
         bio,
         foodPreferences: selectedFoodPrefs,
-        leftoverVibe: selectedLeftoverVibe || undefined,
         matchGoal: selectedMatchGoal,
-      });
+      };
+
+      // Only add optional fields if they have values
+      if (nickname && nickname.trim()) {
+        profileData.nickname = nickname.trim();
+      }
+      
+      if (age && age.trim()) {
+        profileData.age = parseInt(age);
+      }
+      
+      if (gender && gender.trim()) {
+        profileData.gender = gender.trim();
+      }
+      
+      if (selectedLeftoverVibe && selectedLeftoverVibe.trim()) {
+        profileData.leftoverVibe = selectedLeftoverVibe.trim();
+      }
+
+      console.log('Profile data being sent:', profileData);
+      
+      await updateProfile(profileData);
       
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to update profile');
+      console.error('Profile update error:', error);
+      Alert.alert('Error', `Failed to update profile: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }

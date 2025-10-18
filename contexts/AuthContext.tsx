@@ -104,9 +104,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) throw new Error('No user logged in');
     
     try {
+      console.log('Updating profile for user:', user.uid);
+      console.log('Profile data:', profileData);
+      
       await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
+      
+      // Update local state
       setUserProfile(prev => prev ? { ...prev, ...profileData } : null);
+      
+      console.log('Profile updated successfully');
     } catch (error) {
+      console.error('Error updating profile:', error);
       throw error;
     }
   };
