@@ -122,10 +122,6 @@ const styles = StyleSheet.create({
     marginTop: 40,
     marginBottom: 32,
   },
-  emoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
@@ -142,12 +138,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 13,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   input: {
     borderWidth: 1,
@@ -160,7 +156,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#2f34ac',
     borderRadius: 30,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
     marginTop: 8,
   },

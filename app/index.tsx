@@ -91,15 +91,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   title: {
-    fontSize: 48,
+    fontSize: 50,
     fontWeight: 'bold',
     color: '#000000',
-    marginBottom: 16,
+    marginBottom: 12,
     letterSpacing: -1,
   },
   tagline: {
-    fontSize: 16,
-    color: '#000000',
+    fontSize: 14,
+    color: '#2f34ac',
     textAlign: 'center',
     marginBottom: 80,
     lineHeight: 24,
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   },
   tapHint: {
     fontSize: 14,
-    color: '#2f34ac',
+    color: '#bbbbc0ff',
     marginTop: 40,
   },
 });
