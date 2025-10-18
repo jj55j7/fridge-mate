@@ -127,7 +127,7 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
                 {getDistanceEmoji(user.distance)} {formatDistance(user.distance)}
               </ThemedText>
               <ThemedText style={styles.userFood}>
-                Has: {user.foodItems.join(', ')}
+                Has: {user.foodItems?.join(', ') || 'Unknown food'}
               </ThemedText>
             </TouchableOpacity>
           ))}
@@ -164,7 +164,7 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
             key={user.id}
             coordinate={user.location}
             title={user.name}
-            description={`${user.foodItems[0]} - ${formatDistance(user.distance)}`}
+            description={`${user.foodItems?.[0] || 'Food'} - ${formatDistance(user.distance)}`}
             onPress={() => handleMarkerPress(user)}
           >
             <View style={styles.customMarker}>
@@ -190,7 +190,7 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
               {getDistanceEmoji(selectedUser.distance)} {formatDistance(selectedUser.distance)}
             </ThemedText>
             <ThemedText style={styles.userFood}>
-              Has: {selectedUser.foodItems.join(', ')}
+              Has: {selectedUser.foodItems?.join(', ') || 'Unknown food'}
             </ThemedText>
             <ThemedText style={styles.lastActive}>
               Last active: {selectedUser.lastActive.toLocaleDateString()}

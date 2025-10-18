@@ -60,7 +60,7 @@
 - **GPS Integration**: Real-time location tracking
 - **Distance Calculation**: Accurate distance between users
 - **Interactive Map**: Google Maps integration with custom markers
-- **Delivery Status**: Shows if food can be delivered based on distance
+- **Meetup Status**: Shows if users are close enough for convenient food sharing
 - **Nearby Users**: Find matches within configurable radius
 - **Location Privacy**: Optional location hiding features
 
@@ -189,7 +189,7 @@ Swipe Right → Start Chatting → Plan Meetup → Share Food!
 3. **Add push notifications** for matches
 4. **Implement payment system** for premium features
 5. **Add video calling** for virtual cooking sessions
-6. **Integrate delivery services** (Uber Eats, DoorDash)
+6. **Add meetup location suggestions** (cafes, parks, community centers)
 
 ## 📊 **Performance Optimizations**
 

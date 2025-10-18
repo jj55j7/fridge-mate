@@ -244,8 +244,10 @@ export default function ChatScreen() {
           <TouchableOpacity 
             style={styles.backButton}
             onPress={() => setSelectedChat(null)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backButtonIcon}>‹</Text>
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
             <ThemedText style={styles.chatTitle}>
@@ -404,7 +406,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
     marginRight: 16,
+  },
+  backButtonIcon: {
+    fontSize: 24,
+    color: '#FF6B6B',
+    fontWeight: 'bold',
+    marginRight: 4,
   },
   backButtonText: {
     fontSize: 16,
