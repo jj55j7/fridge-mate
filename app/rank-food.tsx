@@ -28,7 +28,7 @@ export default function RankFoodScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Rank Your Foods</ThemedText>
+      <Text style={styles.title}>Rank your food</Text>
       <ThemedText style={styles.subtitle}>
         Drag to reorder your foods by priority (expiring soonest at the top).
       </ThemedText>
@@ -58,8 +58,8 @@ export default function RankFoodScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
+  container: { flex: 1, padding: 24, marginTop: 36 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
   subtitle: { fontSize: 16, marginBottom: 16, opacity: 0.7 },
   itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, backgroundColor: '#f8f9fa', borderRadius: 8, padding: 12 },
   rank: { fontSize: 18, fontWeight: 'bold', width: 32 },

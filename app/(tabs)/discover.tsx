@@ -6,14 +6,19 @@ import { calculateFoodCompatibility, recognizeFood } from '@/lib/foodRecognition
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
+
 import {
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 
 // Mock data for potential matches
@@ -193,6 +198,7 @@ export default function DiscoverScreen() {
         if (Array.isArray(foods) && foods.length > 0) {
           setUserFood(foods);
           setHasUploadedPhoto(true);
+          setReviewMode(false); // Ensure we exit review mode
 
           // Run matching algorithm
           const results = mockUsers.map(user => {
@@ -321,7 +327,7 @@ export default function DiscoverScreen() {
         >
           <View style={styles.header}>
             <ThemedText type="title" style={styles.title}>
-              🔍 Discover Matches
+              Discover Matches
             </ThemedText>
             <ThemedText style={styles.subtitle}>
               Add up to 5 photos of your leftovers. Tap Next when done.
@@ -365,7 +371,7 @@ export default function DiscoverScreen() {
 
           <View style={styles.tipsContainer}>
             <ThemedText type="subtitle" style={styles.tipsTitle}>
-              💡 Tips for Better Matches
+              Tips for Better Matches
             </ThemedText>
             <ThemedText style={styles.tip}>
               • Take clear, well-lit photos of your food
@@ -385,83 +391,86 @@ export default function DiscoverScreen() {
   // Review detected foods step
   if (reviewMode) {
     return (
-      <ThemedView style={styles.container}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            🍽️ Review Detected Foods
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Add or remove food items before continuing.
-          </ThemedText>
-        </View>
-        <View style={{ marginBottom: 16 }}>
-          {allDetectedFoods.map((food, idx) => (
-            <View key={food} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 16 }}>{food}</Text>
-              <TouchableOpacity onPress={() => handleRemoveFood(idx)} style={{ marginLeft: 8 }}>
-                <Text style={{ color: '#FF6B6B', fontWeight: 'bold' }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-          <TextInput
-            style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, flex: 1, marginRight: 8 }}
-            value={newFood}
-            onChangeText={setNewFood}
-            placeholder="Add food item"
-          />
-          <TouchableOpacity
-            style={{ backgroundColor: '#4ECDC4', padding: 10, borderRadius: 8 }}
-            onPress={() => { handleAddFood(newFood); setNewFood(''); }}
-            disabled={!newFood.trim()}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ThemedView style={styles.container}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>Add</Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity
-          style={[styles.resetButton, { backgroundColor: '#FF6B6B' }]}
-          onPress={handleReviewNext}
-          disabled={allDetectedFoods.length === 0}
-        >
-          <Text style={styles.resetButtonText}>Next</Text>
-        </TouchableOpacity>
-      </ThemedView>
+            <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+              <View style={styles.header}>
+                <ThemedText type="title" style={styles.title}>
+                  🍽️ Review Detected Foods
+                </ThemedText>
+                <ThemedText style={styles.subtitle}>
+                  Add or remove food items before continuing.
+                </ThemedText>
+              </View>
+              <View style={{ marginBottom: 24 }}>
+                {allDetectedFoods.map((food, idx) => (
+                  <View key={food} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18, paddingVertical: 8, paddingHorizontal: 4, backgroundColor: '#f8f9fa', borderRadius: 10 }}>
+                    <Text style={{ fontSize: 22, fontWeight: '500' }}>{food}</Text>
+                    <TouchableOpacity onPress={() => handleRemoveFood(idx)} style={{ marginLeft: 16, backgroundColor: '#FF6B6B', borderRadius: 16, width: 32, height: 32, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 22 }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee', marginBottom: 16 }}>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, flex: 1, marginRight: 8 }}
+                  value={newFood}
+                  onChangeText={setNewFood}
+                  placeholder="Add food item"
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={{ backgroundColor: '#4ECDC4', padding: 12, borderRadius: 8 }}
+                  onPress={() => { handleAddFood(newFood); setNewFood(''); }}
+                  disabled={!newFood.trim()}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Add</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.resetButton, { backgroundColor: '#FF6B6B', marginBottom: 16 }]}
+                onPress={handleReviewNext}
+                disabled={allDetectedFoods.length === 0}
+              >
+                <Text style={styles.resetButtonText}>Next</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </ThemedView>
+      </TouchableWithoutFeedback>
     );
   }
 
   // Show sorted matches after ranking
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
-          🍽️ Your Food: {userFood.join(', ')}
-        </ThemedText>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}>
+        <View style={styles.header}>
+          <ThemedText type="title" style={styles.title}>
+            🍽️ Your Food: {userFood.join(', ')}
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>
+            We found {sortedMatches.length} potential matches for you!
+          </ThemedText>
+        </View>
+
+        <TouchableOpacity 
+          style={[styles.resetButton, { backgroundColor: '#4ECDC4', marginBottom: 16 }]}
+          onPress={() => router.push('/(tabs)/explore')}
+        >
+          <Text style={styles.resetButtonText}>🔍 Show My Matches</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.resetButton} onPress={resetDiscovery}>
           <Text style={styles.resetButtonText}>🔄 Upload New Photo</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.matchesContainer}>
-        <ThemedText type="subtitle" style={styles.matchesTitle}>
-          � Top Matches ({sortedMatches.length})
-        </ThemedText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {sortedMatches.map((match) => (
-            <TouchableOpacity key={match.id} style={styles.matchCard}>
-              <Image source={{ uri: match.foodPhoto }} style={styles.matchPhoto} />
-              <ThemedText style={styles.matchName}>{match.name}</ThemedText>
-              <ThemedText style={styles.matchFood}>{match.foodItems[0]}</ThemedText>
-              <ThemedText style={{ fontSize: 12, color: '#FF6B6B', fontWeight: 'bold' }}>
-                Score: {match.matchScore}
-              </ThemedText>
-              <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
-                {match.distance}km away
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      </ScrollView>
     </ThemedView>
   );
 }
