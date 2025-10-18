@@ -1,10 +1,14 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
+import { uploadProfilePhoto } from '@/lib/firebase';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -51,8 +55,10 @@ export default function ProfileSetupScreen() {
   const [selectedFoodPrefs, setSelectedFoodPrefs] = useState<string[]>([]);
   const [selectedLeftoverVibe, setSelectedLeftoverVibe] = useState('');
   const [selectedMatchGoal, setSelectedMatchGoal] = useState('');
+  const [address, setAddress] = useState('');
+  const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { updateProfile } = useAuth();
+  const { updateProfile, user } = useAuth();
 
   const toggleFoodPreference = (pref: string) => {
     setSelectedFoodPrefs(prev => 
@@ -68,6 +74,11 @@ export default function ProfileSetupScreen() {
       return;
     }
 
+    if (!address || !address.trim()) {
+      Alert.alert('Error', 'Please enter your fridge address so others can find you');
+      return;
+    }
+
     setLoading(true);
     try {
       // Create profile data object, only including defined values
@@ -76,6 +87,7 @@ export default function ProfileSetupScreen() {
         bio,
         foodPreferences: selectedFoodPrefs,
         matchGoal: selectedMatchGoal,
+        // address will be resolved to coordinates below
       };
 
       // Only add optional fields if they have values
@@ -95,9 +107,40 @@ export default function ProfileSetupScreen() {
         profileData.leftoverVibe = selectedLeftoverVibe.trim();
       }
 
+      // (no-op here) we'll upload the profile photo after creating/updating the profile so we have a uid
+
+      // Geocode the provided address to store coordinates
+      try {
+        const geocoded = await Location.geocodeAsync(address);
+        if (geocoded && geocoded.length > 0) {
+          profileData.location = {
+            latitude: geocoded[0].latitude,
+            longitude: geocoded[0].longitude,
+            address: address.trim(),
+          };
+        } else {
+          // If geocoding fails, still save address string (no coords)
+          profileData.location = { address: address.trim() };
+        }
+      } catch (err) {
+        console.warn('Geocoding failed:', err);
+        profileData.location = { address: address.trim() };
+      }
+
       console.log('Profile data being sent:', profileData);
       
       await updateProfile(profileData);
+
+      // Upload profile photo after profile exists (need user uid from auth context)
+      if (profilePhotoUri && user?.uid) {
+        try {
+          const url = await uploadProfilePhoto(user.uid, profilePhotoUri);
+          // Save the photo URL to the user's profile
+          await updateProfile({ profilePhotoUrl: url });
+        } catch (err) {
+          console.warn('Failed to upload profile photo:', err);
+        }
+      }
       
       router.replace('/(tabs)');
     } catch (error: any) {
@@ -108,6 +151,10 @@ export default function ProfileSetupScreen() {
     }
   };
 
+  const handlePhotoSelected = (uri: string) => {
+    setProfilePhotoUri(uri);
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -116,16 +163,49 @@ export default function ProfileSetupScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <ThemedView style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.emoji}>👨‍🍳</Text>
-            <ThemedText type="title" style={styles.title}>Tell Us About You!</ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Help us find your perfect leftover match
-            </ThemedText>
+            <ThemedText type="title" style={styles.title}>Profile Setup</ThemedText>
+            <ThemedText style={styles.subtitle}>Help us find your perfect leftover match</ThemedText>
           </View>
 
           <View style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>Basic Info</ThemedText>
             
+            
+            {/* Profile photo (optional) - moved above Name */}
+            <View style={{ marginBottom: 12, alignItems: 'center' }}>
+              <View style={styles.avatarRow}>
+                {profilePhotoUri ? (
+                  <Image source={{ uri: profilePhotoUri }} style={styles.profileAvatar} />
+                ) : (
+                  <Image source={require('../../assets/images/icon.png')} style={styles.profileAvatarPlaceholder} />
+                )}
+
+                <TouchableOpacity
+                  style={[styles.galleryButtonSmall, { marginTop: 8 }]}
+                  onPress={async () => {
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') {
+                      Alert.alert('Permission required', 'Please enable photo library access to choose a profile photo');
+                      return;
+                    }
+
+                    const result = await ImagePicker.launchImageLibraryAsync({
+                      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                      allowsEditing: true,
+                      aspect: [1, 1],
+                      quality: 0.8,
+                    });
+
+                    if (!result.canceled && result.assets?.[0]) {
+                      handlePhotoSelected(result.assets[0].uri);
+                    }
+                  }}
+                >
+                  <Text style={styles.buttonTextSmall}>{profilePhotoUri ? 'Change' : 'Choose'}</Text>
+                </TouchableOpacity>
+
+              </View>
+            </View>
+
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>Name / Nickname *</ThemedText>
               <TextInput
@@ -133,6 +213,17 @@ export default function ProfileSetupScreen() {
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g., ChefJess or PastaKing"
+                placeholderTextColor="#999"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <ThemedText style={styles.label}>Fridge Address *</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Street, City, Country"
                 placeholderTextColor="#999"
               />
             </View>
@@ -152,9 +243,15 @@ export default function ProfileSetupScreen() {
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>Gender</ThemedText>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: '#f9f9f9' }]}
                 value={gender}
                 onChangeText={setGender}
+                autoComplete="off"
+                textContentType="none"
+                importantForAutofill="no"
+                underlineColorAndroid="transparent"
+                autoCorrect={false}
+                autoCapitalize="none"
                 placeholder="Your gender (optional)"
                 placeholderTextColor="#999"
               />
@@ -243,6 +340,10 @@ export default function ProfileSetupScreen() {
             </View>
           </View>
 
+          {/* Fridge address moved to Basic Info section */}
+
+          {/* PhotoUpload moved to the header area for profile photo setup */}
+
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleComplete}
@@ -271,8 +372,50 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   header: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginTop: 20,
     marginBottom: 32,
+    width: '100%',
+  },
+  avatarRow: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 6,
+  },
+  avatarTextContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  profileAvatar: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#eee',
+    marginBottom: 6,
+  },
+  profileAvatarPlaceholder: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#f2f2f2',
+    marginBottom: 6,
+  },
+  galleryButton: {
+    backgroundColor: '#4ECDC4',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  galleryButtonSmall: {
+    backgroundColor: '#2f34ac',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    alignItems: 'center',
+    alignSelf: 'center',
+    minWidth: 84,
   },
   emoji: {
     fontSize: 64,
@@ -282,18 +425,19 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
-    textAlign: 'center',
+    marginTop: 28,
+    textAlign: 'left',
   },
   subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
+    fontSize: 12,
+    textAlign: 'left',
     opacity: 0.7,
   },
   section: {
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 16,
   },
@@ -301,7 +445,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
@@ -310,7 +454,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 12,
     padding: 16,
-    fontSize: 16,
+    fontSize: 12,
     backgroundColor: '#f9f9f9',
   },
   textArea: {
@@ -325,17 +469,17 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 30,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: '#f9f9f9',
   },
   chipSelected: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#efe4d9ff',
+    borderColor: '#efe4d9ff',
   },
   chipText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#333',
   },
   chipTextSelected: {
@@ -346,18 +490,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   option: {
-    padding: 16,
-    borderRadius: 12,
+    padding: 10,
+    borderRadius: 30,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: '#f9f9f9',
   },
   optionSelected: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#efe4d9ff',
+    borderColor: '#efe4d9ff',
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#333',
     textAlign: 'center',
   },
@@ -366,18 +510,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   button: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#cfb49aff',
+    borderRadius: 30,
+    padding: 12,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 5,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  buttonTextSmall: {
+    color: 'white',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

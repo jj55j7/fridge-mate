@@ -1,9 +1,8 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { formatDistance, getCurrentLocation, getDistanceEmoji } from '@/lib/location';
-import React, { useEffect, useState } from 'react';
+import { formatDistance, getDistanceEmoji } from '@/lib/location';
+import React, { useState } from 'react';
 import {
-    Alert,
     Platform,
     StyleSheet,
     Text,
@@ -25,56 +24,30 @@ if (Platform.OS !== 'web') {
   } catch (error) {
     console.warn('react-native-maps not available on this platform');
   }
-} else {
-  // For web, create mock components to prevent import errors
-  MapView = null;
-  Marker = null;
-  PROVIDER_GOOGLE = null;
 }
 
 interface MapUser {
   id: string;
   name: string;
-  foodPhoto: string;
-  foodItems: string[];
+  foodPhoto?: string;
+  foodItems?: string[];
   location: {
     latitude: number;
     longitude: number;
   };
-  distance: number;
-  lastActive: Date;
+  distance?: number;
+  lastActive?: Date;
 }
 
 interface MapViewProps {
   onUserSelect: (user: MapUser) => void;
   users: MapUser[];
+  // current user's saved fridge location
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
-export default function MapViewComponent({ onUserSelect, users }: MapViewProps) {
-  const [userLocation, setUserLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+export default function MapViewComponent({ onUserSelect, users, userLocation }: MapViewProps) {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    initializeLocation();
-  }, []);
-
-  const initializeLocation = async () => {
-    try {
-      const location = await getCurrentLocation();
-      setUserLocation({
-        latitude: location.latitude,
-        longitude: location.longitude,
-      });
-    } catch (error) {
-      Alert.alert('Location Error', 'Could not get your location. Please enable location services.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleMarkerPress = (user: MapUser) => {
     setSelectedUser(user);
@@ -87,23 +60,7 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ThemedText>Loading map...</ThemedText>
-      </View>
-    );
-  }
-
-  if (!userLocation) {
-    return (
-      <View style={styles.errorContainer}>
-        <ThemedText>Unable to load map. Please check your location permissions.</ThemedText>
-      </View>
-    );
-  }
-
-  // Show web fallback if MapView is not available
+  // If the platform doesn't support maps, show a fallback list
   if (Platform.OS === 'web' || !MapView) {
     return (
       <View style={styles.webFallback}>
@@ -111,7 +68,7 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
           🗺️ Map View
         </ThemedText>
         <ThemedText style={styles.webFallbackText}>
-          Map functionality is available on mobile devices. Here are nearby users:
+          Map functionality is available on mobile devices. Here are fridge locations we know about:
         </ThemedText>
         <View style={styles.usersList}>
           {users.map((user) => (
@@ -124,7 +81,7 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
                 {user.name}
               </ThemedText>
               <ThemedText style={styles.userDistance}>
-                {getDistanceEmoji(user.distance)} {formatDistance(user.distance)}
+                {getDistanceEmoji(user.distance || 0)} {formatDistance(user.distance || 0)}
               </ThemedText>
               <ThemedText style={styles.userFood}>
                 Has: {user.foodItems?.join(', ') || 'Unknown food'}
@@ -132,6 +89,14 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
             </TouchableOpacity>
           ))}
         </View>
+      </View>
+    );
+  }
+
+  if (!userLocation) {
+    return (
+      <View style={styles.errorContainer}>
+        <ThemedText>Unable to load map. Please set your fridge address in Profile Setup.</ThemedText>
       </View>
     );
   }
@@ -147,31 +112,29 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         }}
-        showsUserLocation
-        showsMyLocationButton
       >
-        {/* User's location marker */}
+        {/* Current user's fridge marker (blue) */}
         <Marker
           coordinate={userLocation}
           title="You"
-          description="Your location"
+          description="Your fridge location"
           pinColor="blue"
         />
 
-        {/* Other users' markers */}
-        {users.map((user) => (
+        {/* Other users' markers (red) */}
+        {users.map((u) => (
           <Marker
-            key={user.id}
-            coordinate={user.location}
-            title={user.name}
-            description={`${user.foodItems?.[0] || 'Food'} - ${formatDistance(user.distance)}`}
-            onPress={() => handleMarkerPress(user)}
+            key={u.id}
+            coordinate={u.location}
+            title={u.name}
+            description={`${u.foodItems?.[0] || 'Food'} - ${formatDistance(u.distance || 0)}`}
+            onPress={() => handleMarkerPress(u)}
           >
             <View style={styles.customMarker}>
               <View style={styles.markerContent}>
                 <Text style={styles.markerEmoji}>🍽️</Text>
                 <Text style={styles.markerDistance}>
-                  {getDistanceEmoji(user.distance)}
+                  {getDistanceEmoji(u.distance || 0)}
                 </Text>
               </View>
             </View>
@@ -187,16 +150,16 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
               {selectedUser.name}
             </ThemedText>
             <ThemedText style={styles.userDistance}>
-              {getDistanceEmoji(selectedUser.distance)} {formatDistance(selectedUser.distance)}
+              {getDistanceEmoji(selectedUser.distance || 0)} {formatDistance(selectedUser.distance || 0)}
             </ThemedText>
             <ThemedText style={styles.userFood}>
               Has: {selectedUser.foodItems?.join(', ') || 'Unknown food'}
             </ThemedText>
             <ThemedText style={styles.lastActive}>
-              Last active: {selectedUser.lastActive.toLocaleDateString()}
+              Last active: {selectedUser.lastActive ? selectedUser.lastActive.toLocaleDateString() : 'Unknown'}
             </ThemedText>
           </View>
-          
+
           <TouchableOpacity
             style={styles.selectButton}
             onPress={handleUserSelect}
@@ -210,7 +173,9 @@ export default function MapViewComponent({ onUserSelect, users }: MapViewProps) 
       <View style={styles.mapControls}>
         <TouchableOpacity
           style={styles.controlButton}
-          onPress={initializeLocation}
+          onPress={() => {
+            // Could implement centering on userLocation if needed
+          }}
         >
           <Text style={styles.controlButtonText}>📍</Text>
         </TouchableOpacity>

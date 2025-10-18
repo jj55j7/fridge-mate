@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import MapViewComponent from '@/components/MapView';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { formatDistance, getCurrentLocation } from '@/lib/location';
+import { auth, db } from '@/lib/firebase';
+import { calculateDistance, formatDistance, getCurrentLocation } from '@/lib/location';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 // Mock data for potential matches
 const mockMatches = [
@@ -51,6 +53,18 @@ export default function ExploreScreen() {
   const [userLocation, setUserLocation] = useState<any>(null);
   const router = useRouter();
 
+  // animation refs for cards
+  const cardAnims = useRef(mockMatches.map(() => new Animated.Value(0))).current;
+  const scaleAnims = useRef(mockMatches.map(() => new Animated.Value(1))).current;
+
+  useEffect(() => {
+    // staggered entrance for cards
+    const timings = cardAnims.map((av, i) =>
+      Animated.timing(av, { toValue: 1, duration: 350, delay: i * 100, useNativeDriver: true })
+    );
+    Animated.stagger(100, timings).start();
+  }, [cardAnims]);
+
   useEffect(() => {
     loadNearbyUsers();
   }, []);
@@ -79,6 +93,52 @@ export default function ExploreScreen() {
       Alert.alert('Location Error', 'Could not load nearby users');
     }
   };
+
+  // Listen to users collection for saved static locations (profiles)
+  useEffect(() => {
+    const usersCol = collection(db, 'users');
+    const unsubscribe = onSnapshot(usersCol, (snapshot) => {
+      const usersFromDb: any[] = [];
+      let myLocation: { latitude: number; longitude: number } | null = null;
+
+      snapshot.forEach(snap => {
+        const data = snap.data();
+        if (snap.id === auth.currentUser?.uid) {
+          // capture current user's saved fridge location
+          if (data.location && data.location.latitude && data.location.longitude) {
+            myLocation = { latitude: data.location.latitude, longitude: data.location.longitude };
+          }
+        }
+
+        if (data.location && data.location.latitude && data.location.longitude) {
+          usersFromDb.push({
+            id: snap.id,
+            name: data.name || data.username || 'Anonymous',
+            location: data.location,
+            foodItems: data.foodItems || [],
+            foodPhoto: data.foodPhoto || null,
+            lastActive: data.lastActive ? (data.lastActive.toDate ? data.lastActive.toDate() : new Date(data.lastActive)) : new Date(),
+          });
+        }
+      });
+
+      // If we found my saved location, compute distances from it and set userLocation
+      if (myLocation) {
+        setUserLocation(myLocation);
+        const { latitude: lat, longitude: lon } = myLocation as { latitude: number; longitude: number };
+        const withDistance = usersFromDb.map(u => ({
+          ...u,
+          distance: calculateDistance(lat, lon, u.location.latitude, u.location.longitude),
+        }));
+        setNearbyUsers(withDistance);
+      } else {
+        // no saved location yet — still list users but with undefined distances
+        setNearbyUsers(usersFromDb.map(u => ({ ...u, distance: 0 })));
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleUserSelect = (user: any) => {
     const foodItems = user.foodItems || ['Unknown food'];
@@ -172,6 +232,7 @@ export default function ExploreScreen() {
         <MapViewComponent
           onUserSelect={handleUserSelect}
           users={nearbyUsers}
+          userLocation={userLocation}
         />
       </View>
     );
@@ -199,22 +260,57 @@ export default function ExploreScreen() {
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle" style={styles.sectionHeading}>Potential Matches</ThemedText>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.matchesContainer}>
-          {mockMatches.map((match) => (
-            <ThemedView key={match.id} style={styles.matchCard}>
-              <ThemedText type="subtitle" style={styles.matchName}>{match.name}</ThemedText>
-              <ThemedText style={styles.matchBio}>"{match.bio}"</ThemedText>
-              <ThemedText style={styles.matchVibe}>{match.leftoverVibe}</ThemedText>
-              <ThemedText style={styles.matchGoal}>{match.matchGoal}</ThemedText>
-              <ThemedText style={styles.compatibility}>
-                Compatibility: {match.compatibility}%
-              </ThemedText>
-              <TouchableOpacity 
-                style={styles.matchButton}
-                onPress={() => showUserProfile(match)}
-              >
-                <ThemedText style={styles.matchButtonText}>Match</ThemedText>
-              </TouchableOpacity>
-            </ThemedView>
+          {mockMatches.map((match, i) => (
+            <Animated.View
+              key={match.id}
+              style={[
+                styles.matchCard,
+                {
+                  opacity: cardAnims[i],
+                  transform: [
+                    {
+                      translateY: cardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }),
+                    },
+                    { scale: scaleAnims[i] },
+                  ],
+                },
+              ]}
+            >
+              <Pressable
+                  onPressIn={() => Animated.spring(scaleAnims[i], { toValue: 0.98, useNativeDriver: true }).start()}
+                  onPressOut={() => Animated.spring(scaleAnims[i], { toValue: 1, useNativeDriver: true }).start()}
+                  style={{ flex: 1 }}
+                >
+                  <View style={styles.matchContent}>
+                    <Image
+                      source={
+                        match.foodPhoto
+                          ? { uri: match.foodPhoto }
+                          : require('../../assets/images/icon.png')
+                      }
+                      style={styles.matchThumb}
+                      resizeMode="cover"
+                    />
+
+                    <ThemedText type="subtitle" style={styles.matchName}>{match.name}</ThemedText>
+                    <ThemedText style={styles.matchBio}>"{match.bio}"</ThemedText>
+                    <ThemedText style={styles.matchVibe}>{match.leftoverVibe}</ThemedText>
+                    <ThemedText style={styles.matchGoal}>{match.matchGoal}</ThemedText>
+                    <ThemedText style={styles.compatibility}>
+                      Compatibility: {match.compatibility}%
+                    </ThemedText>
+                  </View>
+
+                  <View style={styles.matchFooter}>
+                    <TouchableOpacity 
+                      style={styles.matchButton}
+                      onPress={() => showUserProfile(match)}
+                    >
+                      <ThemedText style={styles.matchButtonText}>Match</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                </Pressable>
+            </Animated.View>
           ))}
         </ScrollView>
       </ThemedView>
@@ -251,7 +347,7 @@ const styles = StyleSheet.create({
     color: '#2f34ac',
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
     opacity: 0.8,
   },
@@ -264,17 +360,51 @@ const styles = StyleSheet.create({
   },
   matchCard: {
     width: 280,
-    padding: 16,
+    padding: 12,
     marginRight: 16,
-    backgroundColor: 'rgba(247, 249, 251, 1)',
-    borderRadius: 12,
+    backgroundColor: '#eddccb',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: 'rgba(47,52,172,0.12)',
+    minHeight: 360,
+    // shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   matchName: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  matchThumb: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  matchThumbPlaceholder: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    marginBottom: 10,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchThumbPlaceholderText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  matchContent: {
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  matchFooter: {
+    marginTop: 8,
+    alignItems: 'center',
   },
   matchBio: {
     fontSize: 14,
@@ -297,10 +427,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   matchButton: {
-    backgroundColor: '#eddccb',
-    borderRadius: 8,
-    padding: 8,
+    backgroundColor: 'transparent',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#2f34ac',
   },
   matchButtonText: {
     color: '#2f34ac',
@@ -308,7 +441,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   primaryButton: {
-    backgroundColor: '#eddccb',
+    backgroundColor: '#ffffffff',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -368,7 +501,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   mapButton: {
-    backgroundColor: '#eddccb',
+    backgroundColor: '#efe4d9ff',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',

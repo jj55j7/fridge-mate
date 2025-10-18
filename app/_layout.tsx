@@ -29,6 +29,7 @@ export default function RootLayout() {
           </ThemeProvider>
         </ChatProvider>
       </AuthProvider>
+
     </GestureHandlerRootView>
   );
 }
