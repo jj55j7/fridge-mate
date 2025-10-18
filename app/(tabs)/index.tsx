@@ -1,16 +1,28 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomeScreen() {
+  const { user, userProfile, logout } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: logout },
+      ]
+    );
+  };
+
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
+      headerBackgroundColor={{ light: '#FFE5E5', dark: '#2D1B1B' }}
       headerImage={
         <Image
           source={require('@/assets/images/partial-react-logo.png')}
@@ -18,61 +30,57 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
+        <ThemedText type="title">🍽️ Fridge-Mate</ThemedText>
+        <ThemedText style={styles.tagline}>
+          Match with people based on what's in your fridge
         </ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
+      <ThemedView style={styles.welcomeContainer}>
+        <ThemedText type="subtitle">Welcome back!</ThemedText>
         <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+          Hello {userProfile?.name || userProfile?.username || 'Chef'}! 👋
         </ThemedText>
+        {userProfile?.bio && (
+          <ThemedText style={styles.bio}>
+            "{userProfile.bio}"
+          </ThemedText>
+        )}
       </ThemedView>
+
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
+        <ThemedText type="subtitle">🍳 Ready to find your match?</ThemedText>
         <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
+          Take a photo of your leftovers and let's find someone whose fridge completes your meal!
         </ThemedText>
+        <TouchableOpacity style={styles.primaryButton}>
+          <ThemedText style={styles.buttonText}>📸 Take Photo</ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">🎯 Your Preferences</ThemedText>
+        {userProfile?.foodPreferences && userProfile.foodPreferences.length > 0 && (
+          <ThemedText>
+            <ThemedText type="defaultSemiBold">Dietary:</ThemedText> {userProfile.foodPreferences.join(', ')}
+          </ThemedText>
+        )}
+        {userProfile?.matchGoal && (
+          <ThemedText>
+            <ThemedText type="defaultSemiBold">Looking for:</ThemedText> {userProfile.matchGoal}
+          </ThemedText>
+        )}
+        {userProfile?.leftoverVibe && (
+          <ThemedText>
+            <ThemedText type="defaultSemiBold">Your vibe:</ThemedText> {userProfile.leftoverVibe}
+          </ThemedText>
+        )}
+      </ThemedView>
+
+      <ThemedView style={styles.stepContainer}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <ThemedText style={styles.logoutText}>Logout</ThemedText>
+        </TouchableOpacity>
       </ThemedView>
     </ParallaxScrollView>
   );
@@ -80,13 +88,55 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   titleContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 16,
+  },
+  tagline: {
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.8,
+    fontStyle: 'italic',
+  },
+  welcomeContainer: {
+    gap: 8,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+  },
+  bio: {
+    fontStyle: 'italic',
+    opacity: 0.8,
+    marginTop: 8,
   },
   stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+    gap: 12,
+    marginBottom: 24,
+  },
+  primaryButton: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  logoutButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  logoutText: {
+    color: '#6c757d',
+    fontSize: 16,
   },
   reactLogo: {
     height: 178,
