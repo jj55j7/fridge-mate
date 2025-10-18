@@ -50,20 +50,25 @@ const mockMatches = [
 export default function ExploreScreen() {
   const [showMap, setShowMap] = useState(false);
   const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
+  const [displayMatches, setDisplayMatches] = useState<any[]>(mockMatches);
   const [userLocation, setUserLocation] = useState<any>(null);
   const router = useRouter();
 
-  // animation refs for cards
-  const cardAnims = useRef(mockMatches.map(() => new Animated.Value(0))).current;
-  const scaleAnims = useRef(mockMatches.map(() => new Animated.Value(1))).current;
+  // animation refs for cards - use displayMatches length
+  const cardAnims = useRef<Animated.Value[]>([]);
+  const scaleAnims = useRef<Animated.Value[]>([]);
 
+  // Initialize animations when displayMatches changes
   useEffect(() => {
+    cardAnims.current = displayMatches.map(() => new Animated.Value(0));
+    scaleAnims.current = displayMatches.map(() => new Animated.Value(1));
+    
     // staggered entrance for cards
-    const timings = cardAnims.map((av, i) =>
+    const timings = cardAnims.current.map((av, i) =>
       Animated.timing(av, { toValue: 1, duration: 350, delay: i * 100, useNativeDriver: true })
     );
     Animated.stagger(100, timings).start();
-  }, [cardAnims]);
+  }, [displayMatches]);
 
   useEffect(() => {
     loadNearbyUsers();
@@ -101,16 +106,24 @@ export default function ExploreScreen() {
           if (data.location && data.location.latitude && data.location.longitude) {
             myLocation = { latitude: data.location.latitude, longitude: data.location.longitude };
           }
+          // Skip adding current user to the users list (they get their own blue marker)
+          return;
         }
 
+        // Only add OTHER users (not the current user)
         if (data.location && data.location.latitude && data.location.longitude) {
           usersFromDb.push({
             id: snap.id,
             name: data.name || data.username || 'Anonymous',
+            bio: data.bio || '',
             location: data.location,
             foodItems: data.foodItems || [],
-            foodPhoto: data.foodPhoto || null,
+            foodPhoto: data.foodPhoto || data.profilePhotoUrl || null,
             lastActive: data.lastActive ? (data.lastActive.toDate ? data.lastActive.toDate() : new Date(data.lastActive)) : new Date(),
+            // Include full profile data
+            leftoverVibe: data.leftoverVibe || '',
+            matchGoal: data.matchGoal || '',
+            foodPreferences: data.foodPreferences || [],
           });
         }
       });
@@ -122,11 +135,37 @@ export default function ExploreScreen() {
         const withDistance = usersFromDb.map(u => ({
           ...u,
           distance: calculateDistance(lat, lon, u.location.latitude, u.location.longitude),
+          compatibility: Math.floor(Math.random() * 30) + 70, // Random 70-100%
         }));
+        
+        // Mix real users with mock data and sort by compatibility (descending)
+        if (withDistance.length > 0) {
+          const combined = [...withDistance, ...mockMatches];
+          const sorted = combined.sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
+          setDisplayMatches(sorted);
+        } else {
+          // No real users, just sort mock data
+          const sorted = [...mockMatches].sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
+          setDisplayMatches(sorted);
+        }
+        
         setNearbyUsers(withDistance);
       } else {
         // no saved location yet — still list users but with undefined distances
-        setNearbyUsers(usersFromDb.map(u => ({ ...u, distance: 0 })));
+        const usersWithDistance = usersFromDb.map(u => ({ ...u, distance: 0, compatibility: Math.floor(Math.random() * 30) + 70 }));
+        
+        // Mix real users with mock data and sort by compatibility (descending)
+        if (usersWithDistance.length > 0) {
+          const combined = [...usersWithDistance, ...mockMatches];
+          const sorted = combined.sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
+          setDisplayMatches(sorted);
+        } else {
+          // No real users, just sort mock data
+          const sorted = [...mockMatches].sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
+          setDisplayMatches(sorted);
+        }
+        
+        setNearbyUsers(usersWithDistance);
       }
     });
 
@@ -253,25 +292,33 @@ export default function ExploreScreen() {
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle" style={styles.sectionHeading}>Potential Matches</ThemedText>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.matchesContainer}>
-          {mockMatches.map((match, i) => (
+          {displayMatches.map((match, i) => (
             <Animated.View
               key={match.id}
               style={[
                 styles.matchCard,
                 {
-                  opacity: cardAnims[i],
+                  opacity: cardAnims.current[i] || new Animated.Value(1),
                   transform: [
                     {
-                      translateY: cardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }),
+                      translateY: cardAnims.current[i]?.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) || 0,
                     },
-                    { scale: scaleAnims[i] },
+                    { scale: scaleAnims.current[i] || new Animated.Value(1) },
                   ],
                 },
               ]}
             >
               <Pressable
-                  onPressIn={() => Animated.spring(scaleAnims[i], { toValue: 0.98, useNativeDriver: true }).start()}
-                  onPressOut={() => Animated.spring(scaleAnims[i], { toValue: 1, useNativeDriver: true }).start()}
+                  onPressIn={() => {
+                    if (scaleAnims.current[i]) {
+                      Animated.spring(scaleAnims.current[i], { toValue: 0.98, useNativeDriver: true }).start();
+                    }
+                  }}
+                  onPressOut={() => {
+                    if (scaleAnims.current[i]) {
+                      Animated.spring(scaleAnims.current[i], { toValue: 1, useNativeDriver: true }).start();
+                    }
+                  }}
                   style={{ flex: 1 }}
                 >
                   <View style={styles.matchContent}>
@@ -458,19 +505,26 @@ const styles = StyleSheet.create({
   mapHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 16,
     backgroundColor: '#f8f9fa',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    marginTop: 25,
+    position: 'relative',
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: 'rgba(47, 52, 172, 0.08)',
-    marginRight: 16,
+    position: 'absolute',
+    left: 16,
+    zIndex: 10,
+    marginTop: 30,
+    marginBottom: 7,
   },
   backButtonIcon: {
     fontSize: 24,
@@ -486,6 +540,9 @@ const styles = StyleSheet.create({
   mapTitle: {
     fontSize: 18,
     fontWeight: '600',
+    marginTop: 30,
+    textAlign: 'center',
+    color: '#2f34ac',
   },
   mapDescription: {
     fontSize: 14,
@@ -496,7 +553,7 @@ const styles = StyleSheet.create({
   mapButton: {
     backgroundColor: '#efe4d9ff',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 30,
     alignItems: 'center',
   },
   mapButtonText: {
