@@ -65,19 +65,54 @@ service cloud.firestore {
 }
 ```
 
-### 7. Test Your Setup
+### 7. Set Up Firebase Storage (REQUIRED for Profile Photos)
+
+1. Go to **Storage** in the Firebase Console left sidebar
+2. Click **Get Started**
+3. Choose **Start in test mode** (we'll add security rules next)
+4. Select a location (same as your Firestore location)
+5. Click **Done**
+
+### 8. Configure Storage Security Rules
+
+1. In Storage, go to the **Rules** tab
+2. Replace the default rules with the content from `storage-rules.txt`:
+
+```javascript
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow users to upload and read their own profile photos
+    match /users/{userId}/profile.jpg {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow users to upload and read their own food photos
+    match /users/{userId}/food/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+3. Click **Publish** to save the rules
+
+### 9. Test Your Setup
 
 1. Run your app: `npm start`
 2. Try creating a new account
 3. Check Firebase Console to see if the user appears in Authentication
 4. Check Firestore to see if the user profile was created
+5. Try uploading a profile photo - it should now work!
 
 ## 🚀 Additional Firebase Features to Consider
 
 ### Cloud Storage (for food photos)
 
-- Enable Cloud Storage for storing user-uploaded food photos
-- Set up security rules for image uploads
+- ✅ Already enabled! Storage is configured for profile and food photos
+- Set up additional folders for different image types if needed
 
 ### Cloud Functions (for AI integration)
 
