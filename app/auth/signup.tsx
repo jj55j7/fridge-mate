@@ -4,19 +4,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function SignupScreen() {
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +24,7 @@ export default function SignupScreen() {
   const { signUp } = useAuth();
 
   const handleSignUp = async () => {
-    if (!username || !email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -42,7 +41,7 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      await signUp(email, password, username, phoneNumber);
+      await signUp(email, password, '', phoneNumber);
       router.replace('/auth/profile-setup');
     } catch (error: any) {
       Alert.alert('Sign Up Failed', error.message);
@@ -59,26 +58,13 @@ export default function SignupScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <ThemedView style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.emoji}>🍽️</Text>
-            <ThemedText type="title" style={styles.title}>Join Fridge-Mate!</ThemedText>
+            <ThemedText type="title" style={styles.title}>Join FridgeMate!</ThemedText>
             <ThemedText style={styles.subtitle}>
-              Let's find your perfect leftover match
+              Ready to whip up something delicious with your match?
             </ThemedText>
           </View>
 
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Username *</ThemedText>
-              <TextInput
-                style={styles.input}
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Choose a unique username"
-                placeholderTextColor="#999"
-                autoCapitalize="none"
-              />
-            </View>
-
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>Email *</ThemedText>
               <TextInput
@@ -166,49 +152,46 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
   },
   header: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginTop: 40,
     marginBottom: 32,
-  },
-  emoji: {
-    fontSize: 64,
-    marginBottom: 16,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 4,
+    marginTop: 20,
+    textAlign: 'left',
   },
   subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
+    fontSize: 13,
+    textAlign: 'left',
     opacity: 0.7,
   },
   form: {
-    marginBottom: 32,
-  },
-  inputContainer: {
     marginBottom: 16,
   },
+  inputContainer: {
+    marginBottom: 11,
+  },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    fontSize: 13,
+    backgroundColor: '#efe4d9ff',
   },
   button: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 12,
+    backgroundColor: '#2f34ac',
+    borderRadius: 30,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -218,8 +201,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -227,11 +210,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 16,
+    fontSize: 14,
   },
   linkText: {
-    fontSize: 16,
-    color: '#FF6B6B',
+    fontSize: 13,
+    color: '#2f34ac',
     fontWeight: '600',
   },
 });

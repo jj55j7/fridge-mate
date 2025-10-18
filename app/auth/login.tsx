@@ -4,15 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function LoginScreen() {
@@ -46,7 +46,6 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <ThemedView style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.emoji}>🍽️</Text>
             <ThemedText type="title" style={styles.title}>Welcome Back!</ThemedText>
             <ThemedText style={styles.subtitle}>
               Ready to find your perfect leftover match?
@@ -55,7 +54,7 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <ThemedText style={styles.label}>Username or Email</ThemedText>
+              <ThemedText style={styles.label}>Email</ThemedText>
               <TextInput
                 style={styles.input}
                 value={email}
@@ -117,11 +116,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 48,
+    alignItems: 'flex-start',
+    marginTop: 40,
+    marginBottom: 32,
   },
   emoji: {
     fontSize: 64,
@@ -130,16 +129,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 4,
+    marginTop: 20,
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: 'left',
     opacity: 0.7,
   },
   form: {
-    marginBottom: 32,
+    marginBottom: 14,
   },
   inputContainer: {
     marginBottom: 20,
@@ -152,14 +152,14 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    fontSize: 14,
+    backgroundColor: '#efe4d9ff',
   },
   button: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 12,
+    backgroundColor: '#2f34ac',
+    borderRadius: 30,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -169,8 +169,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -181,8 +181,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   linkText: {
-    fontSize: 16,
-    color: '#FF6B6B',
+    fontSize: 13,
+    color: '#2f34ac',
     fontWeight: '600',
   },
 });
