@@ -329,8 +329,8 @@ export default function DiscoverScreen() {
             <ThemedText type="title" style={styles.title}>
               Discover Matches
             </ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Add up to 5 photos of your leftovers. Tap Next when done.
+            <ThemedText style={styles.intro}>
+              Add up to 5 photos of your leftovers. Take a photo or choose from your gallery. Tap Next when done. Our AI will identify the food and find you a perfect match!
             </ThemedText>
           </View>
 
@@ -339,35 +339,26 @@ export default function DiscoverScreen() {
             onRecognitionComplete={() => {}}
             loading={isRecognizing}
           />
-
           {photoUris.length > 0 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={{ marginVertical: 16 }}
-              contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}
+              contentContainerStyle={{ gap: 12, paddingHorizontal: 4, paddingVertical: 8 }}
             >
               {photoUris.map((uri, idx) => (
-                <View key={uri} style={{ position: 'relative' }}>
+                <View key={uri} style={{ position: 'relative', marginHorizontal: 4}}>
                   <Image source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8 }} />
                   <TouchableOpacity
-                    style={{ position: 'absolute', top: -8, right: -8, backgroundColor: '#FF6B6B', borderRadius: 12, padding: 4, width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }}
+                    style={{ position: 'absolute', top: -8, right: -8, backgroundColor: '#efe4d9ff', borderRadius: 12, padding: 4, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#2f34ac' }}
                     onPress={() => handleRemovePhoto(idx)}
                   >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>✕</Text>
+                    <Text style={{ color: '#2f34ac', fontWeight: 'bold', fontSize: 14 }}>✕</Text>
                   </TouchableOpacity>
                 </View>
               ))}
             </ScrollView>
           )}
-
-          <TouchableOpacity
-            style={[styles.resetButton, { marginBottom: 12, backgroundColor: '#4ECDC4' }]}
-            onPress={handleNextPhotos}
-            disabled={photoUris.length === 0 || isRecognizing}
-          >
-            <Text style={styles.resetButtonText}>Next</Text>
-          </TouchableOpacity>
 
           <View style={styles.tipsContainer}>
             <ThemedText type="subtitle" style={styles.tipsTitle}>
@@ -383,6 +374,14 @@ export default function DiscoverScreen() {
               • Make sure the food is clearly visible
             </ThemedText>
           </View>
+
+          <TouchableOpacity
+            style={[styles.resetButton, { marginTop: 18, backgroundColor: '#2f34ac' }]}
+            onPress={handleNextPhotos}
+            disabled={photoUris.length === 0 || isRecognizing}
+          >
+            <Text style={styles.resetButtonText}>Next</Text>
+          </TouchableOpacity>
         </ScrollView>
       </ThemedView>
     );
@@ -399,9 +398,16 @@ export default function DiscoverScreen() {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
             <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+              <TouchableOpacity
+                onPress={() => setReviewMode(false)}
+                style={{ position: 'absolute', left: -10, top: 40, zIndex: 10, padding: 8 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={{ fontSize: 28, color: '#2f34ac' }}>{'←'}</Text>
+              </TouchableOpacity>
               <View style={styles.header}>
                 <ThemedText type="title" style={styles.title}>
-                  🍽️ Review Detected Foods
+                   Review Detected Foods
                 </ThemedText>
                 <ThemedText style={styles.subtitle}>
                   Add or remove food items before continuing.
@@ -409,32 +415,70 @@ export default function DiscoverScreen() {
               </View>
               <View style={{ marginBottom: 24 }}>
                 {allDetectedFoods.map((food, idx) => (
-                  <View key={food} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18, paddingVertical: 8, paddingHorizontal: 4, backgroundColor: '#f8f9fa', borderRadius: 10 }}>
-                    <Text style={{ fontSize: 22, fontWeight: '500' }}>{food}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveFood(idx)} style={{ marginLeft: 16, backgroundColor: '#FF6B6B', borderRadius: 16, width: 32, height: 32, justifyContent: 'center', alignItems: 'center' }}>
-                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 22 }}>✕</Text>
+                  <View
+                    key={food}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginBottom: 18,
+                      paddingVertical: 8,
+                      paddingHorizontal: 8,
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text style={{ flex: 1, fontSize: 17, fontWeight: '500' }}>{food}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveFood(idx)}
+                      style={{
+                        backgroundColor: '#efe4d9ff',
+                        borderRadius: 16,
+                        width: 32,
+                        height: 32,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: '#2f34ac',
+                      }}
+                    >
+                      <Text style={{ color: '#2f34ac', fontWeight: 'bold', fontSize: 22 }}>✕</Text>
                     </TouchableOpacity>
                   </View>
                 ))}
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee', marginBottom: 16 }}>
                 <TextInput
-                  style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, flex: 1, marginRight: 8 }}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#ddd',
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    minHeight: 48,
+                    fontSize: 16,
+                    flex: 1,
+                    marginRight: 8,
+                  }}
                   value={newFood}
                   onChangeText={setNewFood}
                   placeholder="Add food item"
                   returnKeyType="done"
                 />
                 <TouchableOpacity
-                  style={{ backgroundColor: '#4ECDC4', padding: 12, borderRadius: 8 }}
+                  style={{
+                    backgroundColor: '#efe4d9ff',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 25,
+                  }}
                   onPress={() => { handleAddFood(newFood); setNewFood(''); }}
                   disabled={!newFood.trim()}
                 >
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Add</Text>
+                  <Text style={{ color: '#2f34ac', fontWeight: '600', fontSize: 16 }}>Add</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
-                style={[styles.resetButton, { backgroundColor: '#FF6B6B', marginBottom: 16 }]}
+                style={[styles.resetButton, { backgroundColor: '#2f34ac', marginBottom: 16 }]}
                 onPress={handleReviewNext}
                 disabled={allDetectedFoods.length === 0}
               >
@@ -448,31 +492,8 @@ export default function DiscoverScreen() {
   }
 
   // Show sorted matches after ranking
-  return (
-    <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            🍽️ Your Food: {userFood.join(', ')}
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            We found {sortedMatches.length} potential matches for you!
-          </ThemedText>
-        </View>
-
-        <TouchableOpacity 
-          style={[styles.resetButton, { backgroundColor: '#4ECDC4', marginBottom: 16 }]}
-          onPress={() => router.push('/(tabs)/explore')}
-        >
-          <Text style={styles.resetButtonText}>🔍 Show My Matches</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.resetButton} onPress={resetDiscovery}>
-          <Text style={styles.resetButtonText}>🔄 Upload New Photo</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </ThemedView>
-  );
+  // Removed Your Food summary page; navigation now goes directly to Explore or resets from Rank Food
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -483,12 +504,13 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 20,
-    marginTop: 40, // Add top margin to prevent header from being pushed out
+    marginTop: 60, // Add top margin to prevent header from being pushed out
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 6,
     textAlign: 'center',
   },
   subtitle: {
@@ -497,8 +519,20 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     lineHeight: 22,
   },
+  intro: {
+    fontSize: 17,
+    textAlign: 'left',
+    opacity: 0.85,
+    lineHeight: 24,
+    marginTop: 4,
+    marginBottom: 16,
+    maxWidth: 380,
+    alignSelf: 'flex-start',
+    paddingRight: 8,
+    paddingLeft: 2,
+  },
   tipsContainer: {
-    marginTop: 32,
+    marginTop: 15,
     padding: 16,
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
@@ -506,7 +540,7 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   tip: {
     fontSize: 14,
@@ -537,14 +571,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   resetButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
+    backgroundColor: '#2f34ac',
+    minWidth: 160,
+    alignSelf: 'center',
+    paddingHorizontal: 125,
+    paddingVertical: 14,
+    borderRadius: 30,
   },
   resetButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
   matchesContainer: {

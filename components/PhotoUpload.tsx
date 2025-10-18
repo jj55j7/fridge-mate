@@ -98,13 +98,7 @@ export default function PhotoUpload({ onPhotoSelected, onRecognitionComplete, lo
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="subtitle" style={styles.title}>
-        Upload Your Leftovers
-      </ThemedText>
-      
-      <ThemedText style={styles.subtitle}>
-        Take a photo or choose from your gallery. Our AI will identify the food and find you a perfect match!
-      </ThemedText>
+      {/* Removed Upload Your Leftovers heading and description as requested */}
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
@@ -126,9 +120,9 @@ export default function PhotoUpload({ onPhotoSelected, onRecognitionComplete, lo
 
       {loading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#2f34ac" />
           <ThemedText style={styles.loadingText}>
-            Analyzing your food... 🤖
+            Analyzing your food...
           </ThemedText>
         </View>
       )}
@@ -245,7 +239,9 @@ function CameraModal({ visible, onClose, onPhotoTaken }: CameraModalProps) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: -10,
+    paddingBottom: 20,
     alignItems: 'center',
   },
   title: {
@@ -267,17 +263,17 @@ const styles = StyleSheet.create({
   },
   button: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 25,
     alignItems: 'center',
   },
   cameraButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#efe4d9ff',
   },
   galleryButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#efe4d9ff',
   },
   buttonText: {
-    color: 'white',
+    color: '#2f34ac',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -342,7 +338,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#FF6B6B',
+    borderColor: '#2f34ac',
   },
   captureButtonDisabled: {
     opacity: 0.6,
@@ -357,7 +353,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   permissionButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#2f34ac',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
