@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -14,7 +13,7 @@ const mockMatches = [
   {
     id: '1',
     name: 'PizzaLover23',
-    bio: 'Always have half a pizza in the fridge 🍕',
+    bio: 'Always have half a pizza in the fridge',
     leftoverVibe: 'Always have pizza',
     matchGoal: 'Looking to share leftovers',
     foodPreferences: ['Vegetarian', 'Anything-goes'],
@@ -25,7 +24,7 @@ const mockMatches = [
   {
     id: '2',
     name: 'ChefSarah',
-    bio: 'Meal prep enthusiast who always cooks too much pasta 🍝',
+    bio: 'Meal prep enthusiast who always cooks too much pasta',
     leftoverVibe: 'Meal prep enthusiast',
     matchGoal: 'Cooking collab',
     foodPreferences: ['Vegan', 'Gluten-Free'],
@@ -36,7 +35,7 @@ const mockMatches = [
   {
     id: '3',
     name: 'BrunchKing',
-    bio: 'Serial bruncher with leftover avocado toast 🥑',
+    bio: 'Serial bruncher with leftover avocado toast',
     leftoverVibe: 'Serial bruncher',
     matchGoal: 'Date night material',
     foodPreferences: ['Vegetarian', 'Halal'],
@@ -85,11 +84,11 @@ export default function ExploreScreen() {
     const foodItems = user.foodItems || ['Unknown food'];
     
     Alert.alert(
-      `Match with ${user.name}! 💕`,
+      `Match with ${user.name}!`,
       `You and ${user.name} are a perfect food match!\n\n` +
       `Distance: ${formatDistance(user.distance)}\n` +
       `Their food: ${foodItems.join(', ')}\n\n` +
-      `🍽️ Perfect for sharing leftovers together!`,
+      `Perfect for sharing leftovers together!`,
       [
         { 
           text: 'Start Chatting', 
@@ -97,7 +96,7 @@ export default function ExploreScreen() {
             console.log('Start Chatting pressed');
             try {
               // Navigate to chat tab
-              router.navigate('/(tabs)/chat');
+              router.navigate('/(tabs)/chat' as any);
               console.log('Navigation attempted to chat');
             } catch (error) {
               console.error('Navigation error:', error);
@@ -122,23 +121,25 @@ export default function ExploreScreen() {
     console.log('showUserProfile called with user:', user.name);
     const foodItems = user.foodItems || ['Unknown food'];
     
+    const lastActiveStr = user.lastActive ? new Date(user.lastActive).toLocaleDateString() : 'Unknown';
+
     Alert.alert(
-      `${user.name}'s Profile 👤`,
+      `${user.name}'s Profile`,
       `Bio: "${user.bio}"\n\n` +
       `Food Vibe: ${user.leftoverVibe}\n` +
       `Looking for: ${user.matchGoal}\n` +
       `Dietary: ${user.foodPreferences?.join(', ') || 'Not specified'}\n` +
       `Has: ${foodItems.join(', ')}\n` +
       `Distance: ${formatDistance(user.distance)}\n` +
-      `Last active: ${user.lastActive.toLocaleDateString()}\n\n` +
-      `🍽️ Great match for sharing food together!`,
+      `Last active: ${lastActiveStr}\n\n` +
+      `Great match for sharing food together!`,
       [
         { 
           text: 'Start Chat', 
           onPress: () => {
             console.log('Start Chat from profile pressed');
             try {
-              router.navigate('/(tabs)/chat');
+              router.navigate('/(tabs)/chat' as any);
               console.log('Navigation attempted to chat from profile');
             } catch (error) {
               console.error('Navigation error:', error);
@@ -164,7 +165,7 @@ export default function ExploreScreen() {
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
           <ThemedText type="subtitle" style={styles.mapTitle}>
-            🗺️ Nearby Matches
+            Nearby Matches
           </ThemedText>
         </View>
         
@@ -177,40 +178,33 @@ export default function ExploreScreen() {
   }
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#E8F5E8', dark: '#1B2D1B' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
+    <ParallaxScrollView>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">🔍 Find Your Match</ThemedText>
+        <ThemedText type="title" style={styles.titleText}> Find Your Match</ThemedText>
         <ThemedText style={styles.subtitle}>
           Discover people whose leftovers complement yours
         </ThemedText>
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">💡 How it works</ThemedText>
+        <ThemedText type="subtitle" style={styles.sectionHeading}>How it works</ThemedText>
         <ThemedText>
           1. Take a photo of your leftovers{'\n'}
           2. Our AI identifies the food{'\n'}
           3. We find someone whose fridge completes your meal{'\n'}
-          4. Match and meet up! 🎉
+          4. Match and meet up! 
         </ThemedText>
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">🎯 Potential Matches</ThemedText>
+        <ThemedText type="subtitle" style={styles.sectionHeading}>Potential Matches</ThemedText>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.matchesContainer}>
           {mockMatches.map((match) => (
             <ThemedView key={match.id} style={styles.matchCard}>
               <ThemedText type="subtitle" style={styles.matchName}>{match.name}</ThemedText>
               <ThemedText style={styles.matchBio}>"{match.bio}"</ThemedText>
-              <ThemedText style={styles.matchVibe}>🎯 {match.leftoverVibe}</ThemedText>
-              <ThemedText style={styles.matchGoal}>💫 {match.matchGoal}</ThemedText>
+              <ThemedText style={styles.matchVibe}>{match.leftoverVibe}</ThemedText>
+              <ThemedText style={styles.matchGoal}>{match.matchGoal}</ThemedText>
               <ThemedText style={styles.compatibility}>
                 Compatibility: {match.compatibility}%
               </ThemedText>
@@ -218,7 +212,7 @@ export default function ExploreScreen() {
                 style={styles.matchButton}
                 onPress={() => showUserProfile(match)}
               >
-                <ThemedText style={styles.matchButtonText}>💕 Match</ThemedText>
+                <ThemedText style={styles.matchButtonText}>Match</ThemedText>
               </TouchableOpacity>
             </ThemedView>
           ))}
@@ -226,36 +220,19 @@ export default function ExploreScreen() {
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">📍 Find Local Matches</ThemedText>
+        <ThemedText type="subtitle" style={styles.sectionHeading}>Find Local Matches</ThemedText>
         <ThemedText style={styles.mapDescription}>
-          See who's nearby and what they have in their fridge! Perfect for quick meetups and food sharing.
+          See who's nearby and what they have in their fridge. Perfect for quick meetups and food sharing.
         </ThemedText>
         <TouchableOpacity 
           style={styles.mapButton}
           onPress={() => setShowMap(true)}
         >
-          <ThemedText style={styles.mapButtonText}>🗺️ View Map</ThemedText>
+          <ThemedText style={styles.mapButtonText}>View Map</ThemedText>
         </TouchableOpacity>
       </ThemedView>
 
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">📸 Ready to find your perfect match?</ThemedText>
-        <TouchableOpacity 
-          style={styles.primaryButton}
-          onPress={() => {
-            console.log('Take Photo button pressed');
-            try {
-              router.navigate('/(tabs)/discover');
-              console.log('Navigation attempted to discover');
-            } catch (error) {
-              console.error('Navigation error:', error);
-              Alert.alert('Navigation Error', 'Could not navigate to discover. Please try again.');
-            }
-          }}
-        >
-          <ThemedText style={styles.buttonText}>📸 Take Photo of Your Leftovers</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
+      {/* Removed photo call-to-action per design request */}
     </ParallaxScrollView>
   );
 }
@@ -263,14 +240,20 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   titleContainer: {
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    gap: 4,
+    marginBottom: 10,
+    marginTop: 50,
+  },
+  titleText: {
+    color: '#2f34ac',
+  },
+  sectionHeading: {
+    color: '#2f34ac',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 13,
     textAlign: 'center',
     opacity: 0.8,
-    fontStyle: 'italic',
   },
   stepContainer: {
     gap: 12,
@@ -283,7 +266,7 @@ const styles = StyleSheet.create({
     width: 280,
     padding: 16,
     marginRight: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(247, 249, 251, 1)',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#dee2e6',
@@ -314,18 +297,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   matchButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#eddccb',
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
   },
   matchButtonText: {
-    color: 'white',
+    color: '#2f34ac',
     fontSize: 14,
     fontWeight: '600',
   },
   primaryButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#eddccb',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -360,18 +343,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: 'rgba(47, 52, 172, 0.08)',
     marginRight: 16,
   },
   backButtonIcon: {
     fontSize: 24,
-    color: '#FF6B6B',
+    color: '#2f34ac',
     fontWeight: 'bold',
     marginRight: 4,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: '#2f34ac',
     fontWeight: '600',
   },
   mapTitle: {
@@ -385,13 +368,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   mapButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#eddccb',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   mapButtonText: {
-    color: 'white',
+    color: '#2f34ac',
     fontSize: 16,
     fontWeight: '600',
   },
