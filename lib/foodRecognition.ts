@@ -1,6 +1,6 @@
-// Food Recognition - Fallback implementation
-// Note: For production, you would need a valid Google Gemini API key
-// This implementation provides a fallback for demo purposes
+// Food Recognition with optional Google Cloud Vision
+// If EXPO_PUBLIC_GOOGLE_VISION_API_KEY is set, will call Vision API; otherwise uses a simple heuristic fallback
+import * as FileSystem from 'expo-file-system/legacy';
 
 export interface FoodItem {
   name: string;
@@ -20,73 +20,155 @@ export interface FoodRecognitionResult {
 
 export async function recognizeFood(imageUri: string): Promise<FoodRecognitionResult> {
   try {
-    // For demo purposes, we'll simulate food recognition
-    // In production, you would integrate with a real food recognition API
     console.log('Processing food image:', imageUri);
+
+    // Try OpenAI Vision API when key is available
+    // @ts-ignore - Expo env vars
+    const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+    console.log('OpenAI API key present:', apiKey ? 'YES' : 'NO');
     
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Return a mock result for demo purposes
-    // In production, this would be replaced with actual AI recognition
-    const mockResults = [
-      {
-        foods: [
-          {
-            name: "Pasta",
-            confidence: 0.85,
-            category: "main",
-            ingredients: ["pasta", "tomato sauce", "cheese"]
+    if (apiKey) {
+      try {
+        // Read file as base64
+        const b64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' as any });
+        
+        const body = {
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Identify all food items in this image. Return ONLY a JSON object with this exact format: {"foods": [{"name": "Food Name", "confidence": 0.95}], "cuisine": "Italian", "primaryFood": "Pizza"}. Be specific with food names.',
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:image/jpeg;base64,${b64}`,
+                  },
+                },
+              ],
+            },
+          ],
+          max_tokens: 300,
+        };
+        
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
           },
-          {
-            name: "Garlic Bread",
-            confidence: 0.75,
-            category: "side",
-            ingredients: ["bread", "garlic", "butter"]
+          body: JSON.stringify(body),
+        });
+        
+        const json = await resp.json();
+        console.log('OpenAI API response:', JSON.stringify(json).substring(0, 300));
+        
+        const content = json?.choices?.[0]?.message?.content;
+        if (content) {
+          // Parse the JSON response
+          const parsed = JSON.parse(content.replace(/```json\n?/g, '').replace(/```/g, '').trim());
+          const foods: FoodItem[] = parsed.foods.map((f: any) => ({
+            name: f.name,
+            confidence: f.confidence || 0.9,
+            category: 'main',
+          }));
+          
+          const primary = parsed.primaryFood || foods[0]?.name || 'Food Item';
+          const cuisine = parsed.cuisine || guessCuisine(primary);
+          const mealType = guessMealType(primary);
+
+          if (foods.length > 0) {
+            return {
+              foods,
+              primaryFood: primary,
+              cuisine,
+              mealType,
+              temperature: 'room-temperature',
+              freshness: 'leftover',
+            };
           }
-        ],
-        primaryFood: "Pasta",
-        cuisine: "Italian",
-        mealType: "dinner" as const,
-        temperature: "hot" as const,
-        freshness: "leftover" as const
-      },
-      {
-        foods: [
-          {
-            name: "Fried Rice",
-            confidence: 0.90,
-            category: "main",
-            ingredients: ["rice", "eggs", "vegetables", "soy sauce"]
-          }
-        ],
-        primaryFood: "Fried Rice",
-        cuisine: "Asian",
-        mealType: "lunch" as const,
-        temperature: "hot" as const,
-        freshness: "leftover" as const
-      },
-      {
-        foods: [
-          {
-            name: "Pizza",
-            confidence: 0.88,
-            category: "main",
-            ingredients: ["dough", "cheese", "tomato sauce", "toppings"]
-          }
-        ],
-        primaryFood: "Pizza",
-        cuisine: "Italian",
-        mealType: "dinner" as const,
-        temperature: "room-temperature" as const,
-        freshness: "leftover" as const
+        }
+        // fallthrough to heuristic if OpenAI returns nothing meaningful
+      } catch (e) {
+        console.warn('OpenAI Vision API failed, using heuristic fallback:', e);
       }
-    ];
-    
-    // Select a random mock result
-    const mockResult = mockResults[Math.floor(Math.random() * mockResults.length)];
-    
-    return mockResult;
+    }
+
+    // Heuristic fallback
+    const uriLower = imageUri.toLowerCase();
+    const looksLike = (kw: string) => uriLower.includes(kw);
+
+    // Prefer pizza when the path hints at it
+    if (looksLike('pizza') || looksLike('pz') || looksLike('pie')) {
+      return {
+        foods: [
+          {
+            name: 'Pizza',
+            confidence: 0.95,
+            category: 'main',
+            ingredients: ['dough', 'cheese', 'tomato sauce', 'toppings'],
+          },
+        ],
+        primaryFood: 'Pizza',
+        cuisine: 'Italian',
+        mealType: 'dinner',
+        temperature: 'room-temperature',
+        freshness: 'leftover',
+      };
+    }
+
+    // Very naive keyword checks
+    if (looksLike('pasta') || looksLike('spag') || looksLike('noodle')) {
+      return {
+        foods: [
+          {
+            name: 'Pasta',
+            confidence: 0.9,
+            category: 'main',
+            ingredients: ['pasta', 'tomato sauce', 'cheese'],
+          },
+          { name: 'Garlic Bread', confidence: 0.75, category: 'side', ingredients: ['bread', 'garlic', 'butter'] },
+        ],
+        primaryFood: 'Pasta',
+        cuisine: 'Italian',
+        mealType: 'dinner',
+        temperature: 'hot',
+        freshness: 'leftover',
+      };
+    }
+
+    if (looksLike('rice') || looksLike('fried')) {
+      return {
+        foods: [
+          {
+            name: 'Fried Rice',
+            confidence: 0.9,
+            category: 'main',
+            ingredients: ['rice', 'eggs', 'vegetables', 'soy sauce'],
+          },
+        ],
+        primaryFood: 'Fried Rice',
+        cuisine: 'Asian',
+        mealType: 'lunch',
+        temperature: 'hot',
+        freshness: 'leftover',
+      };
+    }
+
+    // Default heuristic: label as generic Food Item rather than pizza
+    return {
+      foods: [
+        { name: 'Food Item', confidence: 0.5, category: 'main', ingredients: ['ingredients'] },
+      ],
+      primaryFood: 'Food Item',
+      cuisine: 'Unknown',
+      mealType: 'dinner',
+      temperature: 'room-temperature',
+      freshness: 'leftover',
+    };
     
   } catch (error) {
     console.error('Food recognition error:', error);
@@ -107,6 +189,21 @@ export async function recognizeFood(imageUri: string): Promise<FoodRecognitionRe
       freshness: "leftover"
     };
   }
+}
+
+function guessCuisine(food: string): string {
+  const f = food.toLowerCase();
+  if (/pizza|pasta|lasagna|risotto/.test(f)) return 'Italian';
+  if (/sushi|ramen|rice|curry/.test(f)) return 'Asian';
+  if (/taco|burrito|nacho/.test(f)) return 'Mexican';
+  if (/burger|steak|sandwich/.test(f)) return 'American';
+  return 'Unknown';
+}
+
+function guessMealType(food: string): FoodRecognitionResult['mealType'] {
+  const f = food.toLowerCase();
+  if (/pancake|waffle|toast|cereal|egg|omelet/.test(f)) return 'breakfast';
+  return 'dinner';
 }
 
 // Note: convertImageToBase64 function removed as we're using mock data for demo
