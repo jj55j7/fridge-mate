@@ -99,7 +99,7 @@ export default function PhotoUpload({ onPhotoSelected, onRecognitionComplete, lo
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="subtitle" style={styles.title}>
-        📸 Upload Your Leftovers
+        Upload Your Leftovers
       </ThemedText>
       
       <ThemedText style={styles.subtitle}>
@@ -112,7 +112,7 @@ export default function PhotoUpload({ onPhotoSelected, onRecognitionComplete, lo
           onPress={takePhoto}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>📷 Take Photo</Text>
+          <Text style={styles.buttonText}>Take Photo</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -120,7 +120,7 @@ export default function PhotoUpload({ onPhotoSelected, onRecognitionComplete, lo
           onPress={pickFromGallery}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>🖼️ Choose from Gallery</Text>
+          <Text style={styles.buttonText}>Choose from Gallery</Text>
         </TouchableOpacity>
       </View>
 
