@@ -134,11 +134,15 @@ export default function ProfileSetupScreen() {
       // Upload profile photo after profile exists (need user uid from auth context)
       if (profilePhotoUri && user?.uid) {
         try {
+          console.debug('Starting uploadProfilePhoto for uid:', user.uid, 'uri:', profilePhotoUri);
           const url = await uploadProfilePhoto(user.uid, profilePhotoUri);
+          console.debug('uploadProfilePhoto succeeded, url:', url);
           // Save the photo URL to the user's profile
           await updateProfile({ profilePhotoUrl: url });
         } catch (err) {
-          console.warn('Failed to upload profile photo:', err);
+          const uploadErr: any = err;
+          console.error('Failed to upload profile photo:', uploadErr);
+          Alert.alert('Upload failed', `Profile photo upload failed: ${uploadErr?.message || String(uploadErr)}`);
         }
       }
       

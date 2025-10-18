@@ -7,7 +7,7 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { auth, db } from '@/lib/firebase';
-import { calculateDistance, formatDistance, getCurrentLocation } from '@/lib/location';
+import { calculateDistance, formatDistance } from '@/lib/location';
 import { collection, onSnapshot } from 'firebase/firestore';
 
 // Mock data for potential matches
@@ -70,28 +70,21 @@ export default function ExploreScreen() {
   }, []);
 
   const loadNearbyUsers = async () => {
-    try {
-      const location = await getCurrentLocation();
-      setUserLocation(location);
-      
-      // Mock nearby users with locations
-      const mockUsersWithLocation = mockMatches.map((match, index) => ({
-        ...match,
-        location: {
-          latitude: location.latitude + (Math.random() - 0.5) * 0.01,
-          longitude: location.longitude + (Math.random() - 0.5) * 0.01,
-        },
-        distance: Math.random() * 5, // 0-5km
-        lastActive: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
-        // Ensure all required properties are present
-        foodItems: match.foodItems || ['Unknown food'],
-        foodPhoto: match.foodPhoto || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
-      }));
-      
-      setNearbyUsers(mockUsersWithLocation);
-    } catch (error) {
-      Alert.alert('Location Error', 'Could not load nearby users');
-    }
+    // Do not use device GPS here. The map and markers should rely on static
+    // fridge addresses saved in user profiles (from Firestore). We still show
+    // the mock match cards in the UI while the Firestore listener populates
+    // real nearby users.
+    const mockUsers = mockMatches.map((match) => ({
+      ...match,
+      // no live location — Firestore snapshot will provide saved locations
+      location: undefined as any,
+      distance: 0,
+      lastActive: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
+      foodItems: match.foodItems || ['Unknown food'],
+      foodPhoto: match.foodPhoto || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+    }));
+
+    setNearbyUsers(mockUsers);
   };
 
   // Listen to users collection for saved static locations (profiles)

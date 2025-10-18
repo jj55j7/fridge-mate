@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -21,45 +21,34 @@ export default function HomeScreen() {
   };
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#FFE5E5', dark: '#2D1B1B' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
+    <View style={{ flex: 1 }}>
+      <ParallaxScrollView>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">🍽️ Fridge-Mate</ThemedText>
+        <ThemedText type="title"> FridgeMate</ThemedText>
         <ThemedText style={styles.tagline}>
           Match with people based on what's in your fridge
         </ThemedText>
       </ThemedView>
 
-      <ThemedView style={styles.welcomeContainer}>
-        <ThemedText type="subtitle">Welcome back!</ThemedText>
-        <ThemedText>
-          Hello {userProfile?.name || userProfile?.username || 'Chef'}! 👋
-        </ThemedText>
-        {userProfile?.bio && (
-          <ThemedText style={styles.bio}>
-            "{userProfile.bio}"
-          </ThemedText>
-        )}
+      {/* welcome card removed as requested */}
+
+      {/* Profile card: ensure avatar and name are visible in the Home content */}
+      <ThemedView style={styles.profileCard}>
+        <Image
+          source={userProfile?.profilePhotoUrl ? { uri: userProfile.profilePhotoUrl } : require('@/assets/images/icon.png')}
+          style={styles.profileAvatarSmall}
+          contentFit="cover"
+        />
+        <View style={{ marginLeft: 12, flex: 1 }}>
+          <ThemedText style={styles.profileName}>{userProfile?.name || userProfile?.username || 'Chef'}</ThemedText>
+          {userProfile?.bio ? <ThemedText style={{ opacity: 0.8 }}>{userProfile.bio}</ThemedText> : null}
+        </View>
       </ThemedView>
 
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">🍳 Ready to find your match?</ThemedText>
-        <ThemedText>
-          Take a photo of your leftovers and let's find someone whose fridge completes your meal!
-        </ThemedText>
-        <TouchableOpacity style={styles.primaryButton}>
-          <ThemedText style={styles.buttonText}>📸 Take Photo</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
+      {/* 'Ready to find your match?' section removed per request */}
 
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">🎯 Your Preferences</ThemedText>
+        <ThemedText type="subtitle">Your Preferences</ThemedText>
         {userProfile?.foodPreferences && userProfile.foodPreferences.length > 0 && (
           <ThemedText>
             <ThemedText type="defaultSemiBold">Dietary:</ThemedText> {userProfile.foodPreferences.join(', ')}
@@ -82,33 +71,35 @@ export default function HomeScreen() {
           <ThemedText style={styles.logoutText}>Logout</ThemedText>
         </TouchableOpacity>
       </ThemedView>
-    </ParallaxScrollView>
+      </ParallaxScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   titleContainer: {
-    alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 5,
+    marginTop: 45,
+    textAlign: 'left'
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     opacity: 0.8,
-    fontStyle: 'italic',
   },
   welcomeContainer: {
     gap: 8,
-    marginBottom: 24,
+    marginBottom: 10,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#2f34ac',
     borderRadius: 12,
   },
   bio: {
-    fontStyle: 'italic',
-    opacity: 0.8,
-    marginTop: 8,
+    color: '#ffffff',
+  },
+  welcomeText: {
+    color: '#ffffff',
   },
   stepContainer: {
     gap: 12,
@@ -144,5 +135,49 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  headerAvatarWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  headerImageFull: {
+    width: '100%',
+    height: 250,
+  },
+  headerFallback: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#FFE5E5',
+  },
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  profileAvatarSmall: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system';
 import { getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { doc, getFirestore, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -8,7 +9,8 @@ const firebaseConfig = {
   apiKey: "AIzaSyDhBaleAADOHYtM4NPYKaS5Aq7omO87PmE",
   authDomain: "fridge-mate-63f94.firebaseapp.com",
   projectId: "fridge-mate-63f94",
-  storageBucket: "fridge-mate-63f94.firebasestorage.app",
+  // Correct storage bucket hostname for Firebase Storage
+  storageBucket: "fridge-mate-63f94.appspot.com",
   messagingSenderId: "501447406327",
   appId: "1:501447406327:web:5b6e4cce440ac06833d9f2",
   measurementId: "G-6071018WT8"
@@ -49,17 +51,83 @@ export async function updateUserLocation(uid: string, latitude: number, longitud
  */
 export async function uploadProfilePhoto(uid: string, fileUri: string): Promise<string> {
   if (!uid) throw new Error('No uid provided');
-  try {
-    // Fetch the file and convert to blob (works with expo local URIs)
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
+  // Debug: log the incoming URI
+  console.debug('uploadProfilePhoto called with uid:', uid, 'fileUri:', fileUri);
 
+  // Helper to convert a file URI to a Blob via XMLHttpRequest (works for RN file:// URIs)
+  const uriToBlob = (uri: string) =>
+    new Promise<Blob>((resolve, reject) => {
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+          resolve(xhr.response as Blob);
+        };
+        xhr.onerror = function () {
+          reject(new Error('uriToBlob XHR error'));
+        };
+        xhr.responseType = 'blob';
+        xhr.open('GET', uri, true);
+        xhr.send(null);
+      } catch (e) {
+        reject(e);
+      }
+    });
+
+  try {
     const ref = storageRef(storage, `users/${uid}/profile.jpg`);
-    await uploadBytes(ref, blob);
+
+    // If the URI is an Android content URI, use FileSystem to read base64 and convert to blob
+    if (fileUri.startsWith('content://')) {
+      try {
+        console.debug('uploadProfilePhoto: detected content:// URI, using FileSystem fallback');
+  const b64 = await FileSystem.readAsStringAsync(fileUri, { encoding: 'base64' as any });
+        const dataUri = `data:application/octet-stream;base64,${b64}`;
+        const response = await fetch(dataUri);
+        const blob = await response.blob();
+        console.debug('uploadProfilePhoto: fileSystem blob size', (blob as any)?.size);
+        await uploadBytes(ref, blob as any);
+      } catch (fsErr) {
+        console.warn('uploadProfilePhoto: FileSystem fallback failed, trying fetch/XHR fallback', fsErr);
+        // fall through to other fallbacks
+        try {
+          const response = await fetch(fileUri);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch file at ${fileUri} - status ${response.status}`);
+          }
+          const blob = await response.blob();
+          console.debug('uploadProfilePhoto: fetched blob size', (blob as any)?.size);
+          await uploadBytes(ref, blob as any);
+        } catch (firstErr) {
+          console.warn('uploadProfilePhoto: fetch->blob failed after FileSystem, trying uriToBlob XHR fallback', firstErr);
+          const blob = await uriToBlob(fileUri);
+          console.debug('uploadProfilePhoto: xhr blob size', (blob as any)?.size);
+          await uploadBytes(ref, blob as any);
+        }
+      }
+    } else {
+      // First try fetch + blob (works in many environments)
+      try {
+        const response = await fetch(fileUri);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file at ${fileUri} - status ${response.status}`);
+        }
+        const blob = await response.blob();
+        console.debug('uploadProfilePhoto: fetched blob size', (blob as any)?.size);
+        await uploadBytes(ref, blob as any);
+      } catch (firstErr) {
+        console.warn('uploadProfilePhoto: fetch->blob failed, trying uriToBlob XHR fallback', firstErr);
+        // Try XHR uri->blob
+        const blob = await uriToBlob(fileUri);
+        console.debug('uploadProfilePhoto: xhr blob size', (blob as any)?.size);
+        await uploadBytes(ref, blob as any);
+      }
+    }
+
     const url = await getDownloadURL(ref);
     return url;
-  } catch (error) {
-    console.error('uploadProfilePhoto error:', error);
-    throw error;
+  } catch (error: any) {
+    const e: any = error;
+    console.error('uploadProfilePhoto error:', e?.code || '', e?.message || e);
+    throw new Error(`Firebase Storage upload failed: ${e?.code || 'unknown'} - ${e?.message || String(e)}`);
   }
 }

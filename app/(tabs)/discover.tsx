@@ -266,7 +266,7 @@ export default function DiscoverScreen() {
   const handleReviewNext = () => {
     // Navigate to ranking screen with detected foods
     router.push({
-      pathname: '/rank-food',
+      pathname: '/rank-food' as any,
       params: { foods: JSON.stringify(allDetectedFoods) }
     });
   };
