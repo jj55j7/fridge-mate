@@ -3,11 +3,11 @@ import { ThemedView } from '@/components/themed-view';
 import { formatDistance, getDistanceEmoji } from '@/lib/location';
 import React, { useState } from 'react';
 import {
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 // Conditionally import react-native-maps only on native platforms
@@ -48,6 +48,7 @@ interface MapViewProps {
 
 export default function MapViewComponent({ onUserSelect, users, userLocation }: MapViewProps) {
   const [selectedUser, setSelectedUser] = useState<MapUser | null>(null);
+  const mapRef = React.useRef<any>(null);
 
   const handleMarkerPress = (user: MapUser) => {
     setSelectedUser(user);
@@ -57,6 +58,17 @@ export default function MapViewComponent({ onUserSelect, users, userLocation }: 
     if (selectedUser) {
       onUserSelect(selectedUser);
       setSelectedUser(null);
+    }
+  };
+
+  const handleCenterOnUser = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 500);
     }
   };
 
@@ -104,6 +116,7 @@ export default function MapViewComponent({ onUserSelect, users, userLocation }: 
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={{
@@ -169,13 +182,12 @@ export default function MapViewComponent({ onUserSelect, users, userLocation }: 
         </ThemedView>
       )}
 
-      {/* Map controls */}
+      {/* Map controls - Center on your location */}
       <View style={styles.mapControls}>
         <TouchableOpacity
           style={styles.controlButton}
-          onPress={() => {
-            // Could implement centering on userLocation if needed
-          }}
+          onPress={handleCenterOnUser}
+          activeOpacity={0.7}
         >
           <Text style={styles.controlButtonText}>📍</Text>
         </TouchableOpacity>

@@ -101,16 +101,24 @@ export default function ExploreScreen() {
           if (data.location && data.location.latitude && data.location.longitude) {
             myLocation = { latitude: data.location.latitude, longitude: data.location.longitude };
           }
+          // Skip adding current user to the users list (they get their own blue marker)
+          return;
         }
 
+        // Only add OTHER users (not the current user)
         if (data.location && data.location.latitude && data.location.longitude) {
           usersFromDb.push({
             id: snap.id,
             name: data.name || data.username || 'Anonymous',
+            bio: data.bio || '',
             location: data.location,
             foodItems: data.foodItems || [],
-            foodPhoto: data.foodPhoto || null,
+            foodPhoto: data.foodPhoto || data.profilePhotoUrl || null,
             lastActive: data.lastActive ? (data.lastActive.toDate ? data.lastActive.toDate() : new Date(data.lastActive)) : new Date(),
+            // Include full profile data
+            leftoverVibe: data.leftoverVibe || '',
+            matchGoal: data.matchGoal || '',
+            foodPreferences: data.foodPreferences || [],
           });
         }
       });
@@ -458,19 +466,26 @@ const styles = StyleSheet.create({
   mapHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 16,
     backgroundColor: '#f8f9fa',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    marginTop: 25,
+    position: 'relative',
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: 'rgba(47, 52, 172, 0.08)',
-    marginRight: 16,
+    position: 'absolute',
+    left: 16,
+    zIndex: 10,
+    marginTop: 30,
+    marginBottom: 7,
   },
   backButtonIcon: {
     fontSize: 24,
@@ -486,6 +501,9 @@ const styles = StyleSheet.create({
   mapTitle: {
     fontSize: 18,
     fontWeight: '600',
+    marginTop: 30,
+    textAlign: 'center',
+    color: '#2f34ac',
   },
   mapDescription: {
     fontSize: 14,
@@ -498,10 +516,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 30,
   },
   mapButtonText: {
     color: '#2f34ac',
     fontSize: 16,
     fontWeight: '600',
+    marginTop: 30,
   },
 });
