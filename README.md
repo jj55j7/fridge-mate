@@ -141,6 +141,27 @@ fridge-mate/
 - **Home**: Welcome dashboard with user info
 - **Explore**: Potential matches and discovery
 
+### Chat
+
+- **Real-time chat**: Users can message matched partners in real time. Chats are stored in Firestore under the `chats` collection with a `messages` subcollection for each chat.
+- **Create/Open chat**: When starting a chat from the Explore screen the app creates a chat if one doesn't already exist (server-side chat document in Firestore) and navigates to the Chat tab passing the `chatId` as a query parameter. The Chat screen reads that `chatId` and automatically opens the conversation.
+- **Message types**: Text and image messages (image uploads use an unsigned Cloudinary preset; voice messages are planned).
+
+Configuration notes for image uploads (Cloudinary):
+
+1. Sign in to your Cloudinary account and go to Settings → Upload.
+2. Scroll to "Upload presets" and click "Add upload preset".
+3. Choose a name (the app expects `fridge-mate` by default) and set Signing Mode to `Unsigned`.
+4. Save the preset and copy the preset name.
+5. In the project, update `components/ChatInput.tsx` and replace `<YOUR_CLOUD_NAME>` with your Cloudinary cloud name (found in your Cloudinary dashboard). If you used a different preset name, update `CLOUDINARY_UPLOAD_PRESET` accordingly.
+
+How chat creation works in code:
+
+- `contexts/ChatContext.tsx` exposes `createChat(participantId)` which will return an existing chat ID if a chat between the two users exists, otherwise it creates a new chat document and returns the new `chatId`.
+- `app/(tabs)/explore.tsx` calls `createChat(userId)` when the user chooses "Start Chatting", then navigates to `/(tabs)/chat?chatId=<id>`.
+- `app/(tabs)/chat.tsx` should read the `chatId` query parameter and set `selectedChat` to that value so the conversation opens automatically. If this isn't happening, ensure `chat.tsx` uses Expo Router's search params hook (`useLocalSearchParams` or `useSearchParams`) to read `chatId` and set it on mount.
+
+
 ## 🚧 Roadmap
 
 ### Phase 1: Core Features ✅
