@@ -6,6 +6,7 @@ import MapViewComponent from '@/components/MapView';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useChat } from '@/contexts/ChatContext'; // ✅ Import useChat
 import { auth, db } from '@/lib/firebase';
 import { calculateDistance, formatDistance } from '@/lib/location';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -53,6 +54,7 @@ export default function ExploreScreen() {
   const [displayMatches, setDisplayMatches] = useState<any[]>(mockMatches);
   const [userLocation, setUserLocation] = useState<any>(null);
   const router = useRouter();
+  const { createChat } = useChat(); // ✅ Get createChat
 
   // animation refs for cards - use displayMatches length
   const cardAnims = useRef<Animated.Value[]>([]);
@@ -75,13 +77,8 @@ export default function ExploreScreen() {
   }, []);
 
   const loadNearbyUsers = async () => {
-    // Do not use device GPS here. The map and markers should rely on static
-    // fridge addresses saved in user profiles (from Firestore). We still show
-    // the mock match cards in the UI while the Firestore listener populates
-    // real nearby users.
     const mockUsers = mockMatches.map((match) => ({
       ...match,
-      // no live location — Firestore snapshot will provide saved locations
       location: undefined as any,
       distance: 0,
       lastActive: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
@@ -102,15 +99,12 @@ export default function ExploreScreen() {
       snapshot.forEach(snap => {
         const data = snap.data();
         if (snap.id === auth.currentUser?.uid) {
-          // capture current user's saved fridge location
           if (data.location && data.location.latitude && data.location.longitude) {
             myLocation = { latitude: data.location.latitude, longitude: data.location.longitude };
           }
-          // Skip adding current user to the users list (they get their own blue marker)
           return;
         }
 
-        // Only add OTHER users (not the current user)
         if (data.location && data.location.latitude && data.location.longitude) {
           usersFromDb.push({
             id: snap.id,
@@ -120,7 +114,6 @@ export default function ExploreScreen() {
             foodItems: data.foodItems || [],
             foodPhoto: data.foodPhoto || data.profilePhotoUrl || null,
             lastActive: data.lastActive ? (data.lastActive.toDate ? data.lastActive.toDate() : new Date(data.lastActive)) : new Date(),
-            // Include full profile data
             leftoverVibe: data.leftoverVibe || '',
             matchGoal: data.matchGoal || '',
             foodPreferences: data.foodPreferences || [],
@@ -128,39 +121,33 @@ export default function ExploreScreen() {
         }
       });
 
-      // If we found my saved location, compute distances from it and set userLocation
       if (myLocation) {
         setUserLocation(myLocation);
         const { latitude: lat, longitude: lon } = myLocation as { latitude: number; longitude: number };
         const withDistance = usersFromDb.map(u => ({
           ...u,
           distance: calculateDistance(lat, lon, u.location.latitude, u.location.longitude),
-          compatibility: Math.floor(Math.random() * 30) + 70, // Random 70-100%
+          compatibility: Math.floor(Math.random() * 30) + 70,
         }));
         
-        // Mix real users with mock data and sort by compatibility (descending)
         if (withDistance.length > 0) {
           const combined = [...withDistance, ...mockMatches];
           const sorted = combined.sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
           setDisplayMatches(sorted);
         } else {
-          // No real users, just sort mock data
           const sorted = [...mockMatches].sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
           setDisplayMatches(sorted);
         }
         
         setNearbyUsers(withDistance);
       } else {
-        // no saved location yet — still list users but with undefined distances
         const usersWithDistance = usersFromDb.map(u => ({ ...u, distance: 0, compatibility: Math.floor(Math.random() * 30) + 70 }));
         
-        // Mix real users with mock data and sort by compatibility (descending)
         if (usersWithDistance.length > 0) {
           const combined = [...usersWithDistance, ...mockMatches];
           const sorted = combined.sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
           setDisplayMatches(sorted);
         } else {
-          // No real users, just sort mock data
           const sorted = [...mockMatches].sort((a, b) => (b.compatibility || 0) - (a.compatibility || 0));
           setDisplayMatches(sorted);
         }
@@ -171,6 +158,27 @@ export default function ExploreScreen() {
 
     return () => unsubscribe();
   }, []);
+
+  // ✅ NEW: Function to create chat and navigate
+  const handleStartChat = async (userId: string, userName: string) => {
+    try {
+      console.log('Creating chat with user:', userId);
+      
+      // Create the chat in Firestore
+      const chatId = await createChat(userId);
+      
+      console.log('Chat created successfully:', chatId);
+      
+      // Navigate to chat tab
+      router.push('/(tabs)/chat');
+      
+      // Show success message
+      Alert.alert('Success!', `Chat with ${userName} started!`);
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      Alert.alert('Error', 'Could not start chat. Please try again.');
+    }
+  };
 
   const handleUserSelect = (user: any) => {
     const foodItems = user.foodItems || ['Unknown food'];
@@ -184,25 +192,11 @@ export default function ExploreScreen() {
       [
         { 
           text: 'Start Chatting', 
-          onPress: () => {
-            console.log('Start Chatting pressed');
-            try {
-              // Navigate to chat tab
-              router.navigate('/(tabs)/chat' as any);
-              console.log('Navigation attempted to chat');
-            } catch (error) {
-              console.error('Navigation error:', error);
-              Alert.alert('Navigation Error', 'Could not navigate to chat. Please try again.');
-            }
-          }
+          onPress: () => handleStartChat(user.id, user.name) // ✅ Use handleStartChat
         },
         { 
           text: 'View Profile', 
-          onPress: () => {
-            console.log('View Profile pressed');
-            // Show user profile modal
-            showUserProfile(user);
-          }
+          onPress: () => showUserProfile(user)
         },
         { text: 'Cancel', style: 'cancel' }
       ]
@@ -228,16 +222,7 @@ export default function ExploreScreen() {
       [
         { 
           text: 'Start Chat', 
-          onPress: () => {
-            console.log('Start Chat from profile pressed');
-            try {
-              router.navigate('/(tabs)/chat' as any);
-              console.log('Navigation attempted to chat from profile');
-            } catch (error) {
-              console.error('Navigation error:', error);
-              Alert.alert('Navigation Error', 'Could not navigate to chat. Please try again.');
-            }
-          }
+          onPress: () => handleStartChat(user.id, user.name) // ✅ Use handleStartChat
         },
         { text: 'Close', style: 'cancel' }
       ]
@@ -273,7 +258,7 @@ export default function ExploreScreen() {
   return (
     <ParallaxScrollView>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title" style={styles.titleText}> Find Your Match</ThemedText>
+        <ThemedText type="title" style={styles.titleText}>🍽️ Find Your Match</ThemedText>
         <ThemedText style={styles.subtitle}>
           Discover people whose leftovers complement yours
         </ThemedText>
@@ -285,7 +270,7 @@ export default function ExploreScreen() {
           1. Take a photo of your leftovers{'\n'}
           2. Our AI identifies the food{'\n'}
           3. We find someone whose fridge completes your meal{'\n'}
-          4. Match and meet up! 
+          4. Match and meet up! 🎉
         </ThemedText>
       </ThemedView>
 
@@ -333,7 +318,7 @@ export default function ExploreScreen() {
                     />
 
                     <ThemedText type="subtitle" style={styles.matchName}>{match.name}</ThemedText>
-                    <ThemedText style={styles.matchBio}>"{match.bio}"</ThemedText>
+                    <ThemedText style={styles.matchBio}>&quot;{match.bio}&quot;</ThemedText>
                     <ThemedText style={styles.matchVibe}>{match.leftoverVibe}</ThemedText>
                     <ThemedText style={styles.matchGoal}>{match.matchGoal}</ThemedText>
                     <ThemedText style={styles.compatibility}>
@@ -358,17 +343,15 @@ export default function ExploreScreen() {
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle" style={styles.sectionHeading}>Find Local Matches</ThemedText>
         <ThemedText style={styles.mapDescription}>
-          See who's nearby and what they have in their fridge. Perfect for quick meetups and food sharing.
+          See who is nearby and what they have in their fridge. Perfect for quick meetups and food sharing.
         </ThemedText>
         <TouchableOpacity 
           style={styles.mapButton}
           onPress={() => setShowMap(true)}
         >
-          <ThemedText style={styles.mapButtonText}>View Map</ThemedText>
+          <ThemedText style={styles.mapButtonText}>🗺️ View Map</ThemedText>
         </TouchableOpacity>
       </ThemedView>
-
-      {/* Removed photo call-to-action per design request */}
     </ParallaxScrollView>
   );
 }
@@ -407,7 +390,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(47,52,172,0.12)',
     minHeight: 360,
-    // shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -424,19 +406,6 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 10,
     marginBottom: 10,
-  },
-  matchThumbPlaceholder: {
-    width: '100%',
-    height: 140,
-    borderRadius: 10,
-    marginBottom: 10,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  matchThumbPlaceholderText: {
-    color: '#666',
-    fontSize: 14,
   },
   matchContent: {
     flex: 1,
@@ -479,25 +448,6 @@ const styles = StyleSheet.create({
     color: '#2f34ac',
     fontSize: 14,
     fontWeight: '600',
-  },
-  primaryButton: {
-    backgroundColor: '#ffffffff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
   },
   container: {
     flex: 1,

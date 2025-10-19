@@ -1,6 +1,19 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { addDoc, collection, doc, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
+import { 
+  addDoc, 
+  collection, 
+  doc, 
+  onSnapshot, 
+  orderBy, 
+  query, 
+  serverTimestamp, 
+  updateDoc, 
+  where,
+  getDocs,
+  Timestamp,
+  setDoc
+} from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface Message {
@@ -16,16 +29,19 @@ interface Message {
 interface Chat {
   id: string;
   participants: string[];
-  lastMessage?: Message;
+  lastMessage?: {
+    content: string;
+    timestamp: Date;
+    senderId: string;
+  };
   lastMessageTime: Date;
-  unreadCount: number;
+  unreadCount: { [userId: string]: number };
 }
 
 interface ChatContextType {
   chats: Chat[];
-  messages: { [chatId: string]: Message[] };
   loading: boolean;
-  sendMessage: (chatId: string, content: string, type?: 'text' | 'image' | 'voice') => Promise<void>;
+  sendMessage: (chatId: string, content: string) => Promise<void>;
   createChat: (participantId: string) => Promise<string>;
   markAsRead: (chatId: string) => Promise<void>;
   getChatMessages: (chatId: string) => Message[];
@@ -39,113 +55,101 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  // Listen to user's chats
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) {
+      setLoading(false);
+      return;
+    }
 
-    // Listen to user's chats
     const chatsQuery = query(
       collection(db, 'chats'),
-      where('participants', 'array-contains', user.uid),
-      orderBy('lastMessageTime', 'desc')
+      where('participants', 'array-contains', user.uid)
     );
 
-    const unsubscribeChats = onSnapshot(chatsQuery, (snapshot) => {
-      const chatsData: Chat[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        chatsData.push({
-          id: doc.id,
-          participants: data.participants,
-          lastMessage: data.lastMessage,
-          lastMessageTime: data.lastMessageTime?.toDate() || new Date(),
-          unreadCount: data.unreadCount || 0,
-        });
-      });
-      setChats(chatsData);
-      setLoading(false);
-    });
-
-    return unsubscribeChats;
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    // Listen to messages for each chat
-    const unsubscribeMessages: (() => void)[] = [];
-
-    chats.forEach((chat) => {
-      const messagesQuery = query(
-        collection(db, 'messages'),
-        where('chatId', '==', chat.id),
-        orderBy('timestamp', 'asc')
-      );
-
-      const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-        const messagesData: Message[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          messagesData.push({
-            id: doc.id,
-            senderId: data.senderId,
-            receiverId: data.receiverId,
-            content: data.content,
-            type: data.type || 'text',
-            timestamp: data.timestamp?.toDate() || new Date(),
-            read: data.read || false,
+    const unsubscribe = onSnapshot(
+      chatsQuery, 
+      (snapshot) => {
+        const chatsData: Chat[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          chatsData.push({
+            id: docSnap.id,
+            participants: data.participants || [],
+            lastMessage: data.lastMessage ? {
+              content: data.lastMessage.content,
+              timestamp: data.lastMessage.timestamp?.toDate() || new Date(),
+              senderId: data.lastMessage.senderId,
+            } : undefined,
+            lastMessageTime: data.lastMessageTime?.toDate() || new Date(),
+            unreadCount: data.unreadCount || {},
           });
         });
         
-        setMessages(prev => ({
-          ...prev,
-          [chat.id]: messagesData,
-        }));
-      });
+        // Sort by last message time (most recent first)
+        chatsData.sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+        
+        setChats(chatsData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error listening to chats:', error);
+        setLoading(false);
+      }
+    );
 
-      unsubscribeMessages.push(unsubscribe);
+    return () => unsubscribe();
+  }, [user]);
+
+  // Listen to messages for each chat
+  useEffect(() => {
+    if (!user?.uid || chats.length === 0) return;
+
+    const unsubscribers: (() => void)[] = [];
+
+    chats.forEach((chat) => {
+      const messagesQuery = query(
+        collection(db, `chats/${chat.id}/messages`),
+        orderBy('timestamp', 'asc')
+      );
+
+      const unsubscribe = onSnapshot(
+        messagesQuery,
+        (snapshot) => {
+          const messagesData: Message[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            messagesData.push({
+              id: docSnap.id,
+              senderId: data.senderId,
+              receiverId: data.receiverId,
+              content: data.content,
+              type: data.type || 'text',
+              timestamp: data.timestamp?.toDate() || new Date(),
+              read: data.read || false,
+            });
+          });
+          
+          setMessages(prev => ({
+            ...prev,
+            [chat.id]: messagesData,
+          }));
+        },
+        (error) => {
+          console.error(`Error listening to messages for chat ${chat.id}:`, error);
+        }
+      );
+
+      unsubscribers.push(unsubscribe);
     });
 
     return () => {
-      unsubscribeMessages.forEach(unsubscribe => unsubscribe());
+      unsubscribers.forEach(unsub => unsub());
     };
   }, [chats, user]);
 
-  const sendMessage = async (chatId: string, content: string, type: 'text' | 'image' | 'voice' = 'text') => {
-    if (!user) throw new Error('No user logged in');
-
-    try {
-      const chat = chats.find(c => c.id === chatId);
-      if (!chat) throw new Error('Chat not found');
-
-      const receiverId = chat.participants.find(id => id !== user.uid);
-      if (!receiverId) throw new Error('Receiver not found');
-
-      const messageData = {
-        chatId,
-        senderId: user.uid,
-        receiverId,
-        content,
-        type,
-        timestamp: new Date(),
-        read: false,
-      };
-
-      await addDoc(collection(db, 'messages'), messageData);
-
-      // Update chat's last message
-      await updateDoc(doc(db, 'chats', chatId), {
-        lastMessage: messageData,
-        lastMessageTime: new Date(),
-      });
-
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  };
-
   const createChat = async (participantId: string): Promise<string> => {
-    if (!user) throw new Error('No user logged in');
+    if (!user?.uid) throw new Error('No user logged in');
 
     try {
       // Check if chat already exists
@@ -158,10 +162,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return existingChat.id;
       }
 
+      // Create new chat
       const chatData = {
         participants: [user.uid, participantId],
-        lastMessageTime: new Date(),
-        unreadCount: 0,
+        lastMessageTime: serverTimestamp(),
+        unreadCount: {
+          [user.uid]: 0,
+          [participantId]: 0,
+        },
+        createdAt: serverTimestamp(),
       };
 
       const docRef = await addDoc(collection(db, 'chats'), chatData);
@@ -173,25 +182,78 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const markAsRead = async (chatId: string) => {
-    if (!user) return;
+  const sendMessage = async (chatId: string, content: string) => {
+    if (!user?.uid) throw new Error('No user logged in');
+    if (!content.trim()) return;
 
     try {
+      const chat = chats.find(c => c.id === chatId);
+      if (!chat) throw new Error('Chat not found');
+
+      const receiverId = chat.participants.find(id => id !== user.uid);
+      if (!receiverId) throw new Error('Receiver not found');
+
+      const messageData = {
+        senderId: user.uid,
+        receiverId,
+        content: content.trim(),
+        type: 'text',
+        timestamp: serverTimestamp(),
+        read: false,
+      };
+
+      // Add message to subcollection
+      await addDoc(collection(db, `chats/${chatId}/messages`), messageData);
+
+      // Update chat's last message and unread count
+      const currentUnreadCount = chat.unreadCount || {};
+      await updateDoc(doc(db, 'chats', chatId), {
+        lastMessage: {
+          content: content.trim(),
+          timestamp: serverTimestamp(),
+          senderId: user.uid,
+        },
+        lastMessageTime: serverTimestamp(),
+        unreadCount: {
+          ...currentUnreadCount,
+          [receiverId]: (currentUnreadCount[receiverId] || 0) + 1,
+        },
+      });
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  };
+
+  const markAsRead = async (chatId: string) => {
+    if (!user?.uid) return;
+
+    try {
+      const chat = chats.find(c => c.id === chatId);
+      if (!chat) return;
+
       const chatMessages = messages[chatId] || [];
       const unreadMessages = chatMessages.filter(msg => 
         msg.receiverId === user.uid && !msg.read
       );
 
-      // Mark messages as read
-      for (const message of unreadMessages) {
-        await updateDoc(doc(db, 'messages', message.id), {
+      // Mark messages as read in batch
+      const updatePromises = unreadMessages.map(message =>
+        updateDoc(doc(db, `chats/${chatId}/messages`, message.id), {
           read: true,
-        });
-      }
+        })
+      );
 
-      // Update chat unread count
+      await Promise.all(updatePromises);
+
+      // Reset unread count for current user
+      const currentUnreadCount = chat.unreadCount || {};
       await updateDoc(doc(db, 'chats', chatId), {
-        unreadCount: 0,
+        unreadCount: {
+          ...currentUnreadCount,
+          [user.uid]: 0,
+        },
       });
 
     } catch (error) {
@@ -205,7 +267,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     chats,
-    messages,
     loading,
     sendMessage,
     createChat,

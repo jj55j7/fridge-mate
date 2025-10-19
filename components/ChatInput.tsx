@@ -1,13 +1,11 @@
 import { ThemedView } from '@/components/themed-view';
-import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface ChatInputProps {
@@ -23,35 +21,6 @@ export default function ChatInput({ onSendMessage, disabled = false }: ChatInput
       onSendMessage(message.trim(), 'text');
       setMessage('');
     }
-  };
-
-  const handleImagePicker = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission denied', 'We need photo library access to send images.');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        onSendMessage(result.assets[0].uri, 'image');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
-    }
-  };
-
-  const handleVoiceRecord = () => {
-    // TODO: Implement voice recording
-    Alert.alert('Coming Soon', 'Voice messages will be available soon!');
   };
 
   const icebreakerPrompts = [
@@ -70,7 +39,7 @@ export default function ChatInput({ onSendMessage, disabled = false }: ChatInput
     <ThemedView style={styles.container}>
       {/* Icebreaker Prompts */}
       <View style={styles.icebreakerContainer}>
-        <Text style={styles.icebreakerTitle}>💬 Icebreakers</Text>
+        <Text style={styles.icebreakerTitle}>Icebreakers</Text>
         <View style={styles.promptsContainer}>
           {icebreakerPrompts.slice(0, 2).map((prompt, index) => (
             <TouchableOpacity
@@ -96,33 +65,17 @@ export default function ChatInput({ onSendMessage, disabled = false }: ChatInput
           multiline
           maxLength={500}
           editable={!disabled}
+          onSubmitEditing={handleSend}
+          blurOnSubmit={false}
         />
         
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.imageButton]}
-            onPress={handleImagePicker}
-            disabled={disabled}
-          >
-            <Text style={styles.actionButtonText}>📷</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.voiceButton]}
-            onPress={handleVoiceRecord}
-            disabled={disabled}
-          >
-            <Text style={styles.actionButtonText}>🎤</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.sendButton, disabled && styles.disabledButton]}
-            onPress={handleSend}
-            disabled={!message.trim() || disabled}
-          >
-            <Text style={styles.sendButtonText}>Send</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.sendButton, (!message.trim() || disabled) && styles.disabledButton]}
+          onPress={handleSend}
+          disabled={!message.trim() || disabled}
+        >
+          <Text style={styles.sendButtonText}>Send</Text>
+        </TouchableOpacity>
       </View>
     </ThemedView>
   );
@@ -133,6 +86,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+    marginTop: 8,
   },
   icebreakerContainer: {
     marginBottom: 16,
@@ -141,17 +95,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#FF6B6B',
+    color: '#2f34ac',
   },
   promptsContainer: {
     gap: 8,
   },
   promptButton: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#efe4d9ff',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(47,52,172,0.12)',
   },
   promptText: {
     fontSize: 14,
@@ -178,32 +132,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     color: '#999',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
+  sendButton: {
+    backgroundColor: '#2f34ac',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  imageButton: {
-    backgroundColor: '#4ECDC4',
-  },
-  voiceButton: {
-    backgroundColor: '#FFB74D',
-  },
-  actionButtonText: {
-    fontSize: 18,
-  },
-  sendButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
+    minWidth: 80,
   },
   disabledButton: {
     backgroundColor: '#ccc',

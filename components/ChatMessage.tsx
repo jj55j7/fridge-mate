@@ -1,10 +1,10 @@
 import { ThemedText } from '@/components/themed-text';
 import React from 'react';
 import {
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface Message {
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   ownBubble: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#6a4fbf',
     borderBottomRightRadius: 4,
   },
   otherBubble: {
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   ownTimestamp: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
   },
   otherTimestamp: {
     color: '#666',
@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
   readStatus: {
     fontSize: 12,
     marginLeft: 4,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
   },
 });

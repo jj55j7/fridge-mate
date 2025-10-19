@@ -4,11 +4,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
-import { Image } from 'expo-image';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -17,163 +20,72 @@ import {
   View,
 } from 'react-native';
 
-// Mock data for chat list
-const mockChats = [
-  {
-    id: '1',
-    participants: ['user1', 'user2'],
-    lastMessage: {
-      content: 'Your pasta looks amazing! 🍝',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-      read: false,
-    },
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 30),
-    unreadCount: 2,
-    otherUser: {
-      name: 'PizzaLover23',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
-      foodPhoto: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=100',
-      foodItems: ['Pizza Margherita'],
-    },
-  },
-  {
-    id: '2',
-    participants: ['user1', 'user3'],
-    lastMessage: {
-      content: 'When can we cook together? 👨‍🍳',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      read: true,
-    },
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    unreadCount: 0,
-    otherUser: {
-      name: 'ChefSarah',
-      photo: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100',
-      foodPhoto: 'https://images.unsplash.com/photo-1621996346565-e3dbc353d2e5?w=100',
-      foodItems: ['Spaghetti Carbonara'],
-    },
-  },
-  {
-    id: '3',
-    participants: ['user1', 'user4'],
-    lastMessage: {
-      content: 'Thanks for the great meal! 😊',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      read: true,
-    },
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    unreadCount: 0,
-    otherUser: {
-      name: 'BrunchKing',
-      photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
-      foodPhoto: 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=100',
-      foodItems: ['Avocado Toast'],
-    },
-  },
-];
+interface UserProfile {
+  name: string;
+  photoURL?: string;
+  foodItems?: string[];
+}
 
 export default function ChatScreen() {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [otherUserProfile, setOtherUserProfile] = useState<UserProfile | null>(null);
   const flatListRef = useRef<FlatList>(null);
-  const { chats, sendMessage, markAsRead } = useChat();
-  const { userProfile } = useAuth();
+  const { chats, sendMessage, markAsRead, getChatMessages, loading } = useChat();
+  const { user } = useAuth();
 
-  // Mock messages for demo
-  const mockMessages = {
-    '1': [
-      {
-        id: '1',
-        senderId: 'user2',
-        receiverId: 'user1',
-        content: 'Hey! I saw your pasta photo - looks delicious! 🍝',
-        type: 'text',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
-        read: true,
-      },
-      {
-        id: '2',
-        senderId: 'user1',
-        receiverId: 'user2',
-        content: 'Thanks! It\'s my grandma\'s recipe. Your pizza looks amazing too! 🍕',
-        type: 'text',
-        timestamp: new Date(Date.now() - 1000 * 60 * 45),
-        read: true,
-      },
-      {
-        id: '3',
-        senderId: 'user2',
-        receiverId: 'user1',
-        content: 'Your pasta looks amazing! 🍝',
-        type: 'text',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-        read: false,
-      },
-    ],
-    '2': [
-      {
-        id: '4',
-        senderId: 'user3',
-        receiverId: 'user1',
-        content: 'Hi! I love your carbonara - we should cook together sometime! 👨‍🍳',
-        type: 'text',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-        read: true,
-      },
-      {
-        id: '5',
-        senderId: 'user1',
-        receiverId: 'user3',
-        content: 'That sounds amazing! I\'d love to learn your techniques!',
-        type: 'text',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.5),
-        read: true,
-      },
-      {
-        id: '6',
-        senderId: 'user3',
-        receiverId: 'user1',
-        content: 'When can we cook together? 👨‍🍳',
-        type: 'text',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-        read: true,
-      },
-    ],
-  };
+  const currentMessages = selectedChat ? getChatMessages(selectedChat) : [];
 
+  // Fetch other user's profile when chat is selected
+  useEffect(() => {
+    if (!selectedChat || !user?.uid) return;
+
+    const chat = chats.find(c => c.id === selectedChat);
+    if (!chat) return;
+
+    const otherUserId = chat.participants.find(id => id !== user.uid);
+    if (!otherUserId) return;
+
+    // Fetch other user's profile
+    const fetchUserProfile = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', otherUserId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setOtherUserProfile({
+            name: userData.displayName || userData.name || 'Unknown User',
+            photoURL: userData.photoURL,
+            foodItems: userData.foodItems || [],
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [selectedChat, chats, user]);
+
+  // Mark messages as read when chat is opened
   useEffect(() => {
     if (selectedChat) {
-      setMessages(mockMessages[selectedChat as keyof typeof mockMessages] || []);
       markAsRead(selectedChat);
     }
   }, [selectedChat, markAsRead]);
 
   const handleSendMessage = async (content: string, type: 'text' | 'image' | 'voice') => {
-    if (!selectedChat) return;
+    if (!selectedChat || type !== 'text') return;
 
     try {
-      await sendMessage(selectedChat, content, type);
+      await sendMessage(selectedChat, content);
       
-      // Add to local messages for immediate UI update
-      const newMessage = {
-        id: Date.now().toString(),
-        senderId: 'user1', // Current user
-        receiverId: 'other',
-        content,
-        type,
-        timestamp: new Date(),
-        read: false,
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      
-      // Scroll to bottom
+      // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
       
     } catch (error) {
       Alert.alert('Error', 'Failed to send message');
+      console.error('Send message error:', error);
     }
   };
 
@@ -190,55 +102,125 @@ export default function ChatScreen() {
     return `${days}d ago`;
   };
 
-  const renderChatItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.chatItem, selectedChat === item.id && styles.selectedChatItem]}
-      onPress={() => setSelectedChat(item.id)}
-    >
-      <View style={styles.chatContent}>
-        <View style={styles.userInfo}>
-          <Image source={{ uri: item.otherUser.photo }} style={styles.userPhoto} />
-          <View style={styles.chatDetails}>
-            <ThemedText style={styles.userName}>{item.otherUser.name}</ThemedText>
-            <ThemedText style={styles.lastMessage} numberOfLines={1}>
-              {item.lastMessage.content}
+  const getUnreadCount = (chat: any) => {
+    if (!user?.uid) return 0;
+    return chat.unreadCount?.[user.uid] || 0;
+  };
+
+  // Store user profiles for all chats
+  const [chatUserProfiles, setChatUserProfiles] = useState<{ [chatId: string]: UserProfile }>({});
+
+  // Fetch user profiles for all chats
+  useEffect(() => {
+    if (!user?.uid || chats.length === 0) return;
+
+    const fetchAllProfiles = async () => {
+      const profiles: { [chatId: string]: UserProfile } = {};
+
+      for (const chat of chats) {
+        const otherUserId = chat.participants.find((id: string) => id !== user.uid);
+        if (!otherUserId) continue;
+
+        try {
+          const userDoc = await getDoc(doc(db, 'users', otherUserId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            profiles[chat.id] = {
+              name: userData.displayName || userData.name || 'Unknown User',
+              photoURL: userData.photoURL,
+              foodItems: userData.foodItems || [],
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+        }
+      }
+
+      setChatUserProfiles(profiles);
+    };
+
+    fetchAllProfiles();
+  }, [chats, user]);
+
+  const renderChatItem = ({ item }: { item: any }) => {
+    const userProfile = chatUserProfiles[item.id];
+    const unreadCount = getUnreadCount(item);
+
+    return (
+      <TouchableOpacity
+        style={[styles.chatItem, selectedChat === item.id && styles.selectedChatItem]}
+        onPress={() => setSelectedChat(item.id)}
+      >
+        <View style={styles.chatContent}>
+          <View style={styles.userInfo}>
+            {userProfile?.photoURL ? (
+              <Image 
+                source={{ uri: userProfile.photoURL }} 
+                style={styles.userPhoto}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarText}>
+                  {userProfile?.name?.charAt(0).toUpperCase() || '?'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.chatDetails}>
+              <ThemedText style={styles.userName}>
+                {userProfile?.name || 'Loading...'}
+              </ThemedText>
+              <ThemedText style={styles.lastMessage} numberOfLines={1}>
+                {item.lastMessage?.content || 'Start chatting!'}
+              </ThemedText>
+            </View>
+          </View>
+          
+          <View style={styles.chatMeta}>
+            <ThemedText style={styles.timestamp}>
+              {item.lastMessage ? formatTime(item.lastMessageTime) : ''}
             </ThemedText>
+            {unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadCount}>{unreadCount}</Text>
+              </View>
+            )}
           </View>
         </View>
         
-        <View style={styles.chatMeta}>
-          <ThemedText style={styles.timestamp}>
-            {formatTime(item.lastMessageTime)}
-          </ThemedText>
-          {item.unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadCount}>{item.unreadCount}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-      
-      <View style={styles.foodMatch}>
-        <Image source={{ uri: item.otherUser.foodPhoto }} style={styles.foodPhoto} />
-        <ThemedText style={styles.foodName}>{item.otherUser.foodItems[0]}</ThemedText>
-      </View>
-    </TouchableOpacity>
-  );
+        {userProfile?.foodItems && userProfile.foodItems.length > 0 && (
+          <View style={styles.foodMatch}>
+            <Text style={styles.foodEmoji}></Text>
+            <ThemedText style={styles.foodName}>
+              {userProfile.foodItems[0]}
+            </ThemedText>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   const renderMessage = ({ item }: { item: any }) => (
     <ChatMessage
       message={item}
-      isOwn={item.senderId === 'user1'}
+      isOwn={item.senderId === user?.uid}
     />
   );
 
+  if (loading) {
+    return (
+      <ThemedView style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ThemedText style={styles.loadingText}>Loading chats...</ThemedText>
+      </ThemedView>
+    );
+  }
+
   if (selectedChat) {
-    const currentChat = mockChats.find(chat => chat.id === selectedChat);
-    
     return (
       <KeyboardAvoidingView 
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.chatHeader}>
           <TouchableOpacity 
@@ -251,22 +233,25 @@ export default function ChatScreen() {
           </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
             <ThemedText style={styles.chatTitle}>
-              {currentChat?.otherUser.name}
+              {otherUserProfile?.name || 'Chat'}
             </ThemedText>
-            <ThemedText style={styles.chatSubtitle}>
-              Food Match: {currentChat?.otherUser.foodItems[0]}
-            </ThemedText>
+            {otherUserProfile?.foodItems && otherUserProfile.foodItems.length > 0 && (
+              <ThemedText style={styles.chatSubtitle}>
+                Food Match: {otherUserProfile.foodItems[0]}
+              </ThemedText>
+            )}
           </View>
         </View>
 
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={currentMessages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
           style={styles.messagesList}
           contentContainerStyle={styles.messagesContainer}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
 
         <ChatInput
@@ -280,20 +265,30 @@ export default function ChatScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.header}>
         <ThemedText type="title" style={styles.title}>
-          💬 Your Matches
+          Your Matches
         </ThemedText>
         <ThemedText style={styles.subtitle}>
           Chat with your food matches and plan your next meal together!
         </ThemedText>
       </View>
 
-      <FlatList
-        data={mockChats}
-        renderItem={renderChatItem}
-        keyExtractor={(item) => item.id}
-        style={styles.chatsList}
-        showsVerticalScrollIndicator={false}
-      />
+      {chats.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyEmoji}></Text>
+          <ThemedText style={styles.emptyText}>No chats yet</ThemedText>
+          <ThemedText style={styles.emptySubtext}>
+            Match with someone to start chatting!
+          </ThemedText>
+        </View>
+      ) : (
+        <FlatList
+          data={chats}
+          renderItem={renderChatItem}
+          keyExtractor={(item) => item.id}
+          style={styles.chatsList}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -302,14 +297,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    opacity: 0.7,
+  },
   header: {
     padding: 20,
     paddingBottom: 16,
+    marginTop: 50,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
+    color: '#2f34ac',
   },
   subtitle: {
     fontSize: 16,
@@ -325,7 +332,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   selectedChatItem: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#efe4d9ff',
   },
   chatContent: {
     flexDirection: 'row',
@@ -342,6 +349,20 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#2f34ac',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   chatDetails: {
     flex: 1,
@@ -365,7 +386,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   unreadBadge: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#2f34ac',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -386,10 +407,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
-  foodPhoto: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  foodEmoji: {
+    fontSize: 16,
     marginRight: 8,
   },
   foodName: {
@@ -404,6 +423,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
     backgroundColor: '#f8f9fa',
+    marginTop: 25,
   },
   backButton: {
     flexDirection: 'row',
@@ -411,18 +431,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: 'rgba(47, 52, 172, 0.08)',
     marginRight: 16,
+    position: 'absolute',
+    left: 12,
+    zIndex: 10,
+    marginTop: 18,
   },
   backButtonIcon: {
     fontSize: 24,
-    color: '#FF6B6B',
+    color: '#2f34ac',
     fontWeight: 'bold',
     marginRight: 4,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: '#2f34ac',
     fontWeight: '600',
   },
   chatHeaderInfo: {
@@ -441,5 +465,25 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     padding: 16,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 16,
+    opacity: 0.6,
+    textAlign: 'center',
   },
 });
